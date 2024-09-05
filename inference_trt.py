@@ -591,7 +591,7 @@ def run(opt, f_txt, exp_name, inf_set):
             # Create original image with heatmap overlay
             composite = Image.blend(heatmap_pil, image, 0.6)
             draw = ImageDraw.Draw(composite)
-            font = ImageFont.truetype('C:/Users/s157128/Documents/Roboto/Roboto-Regular.ttf', size=48)
+            font = ImageFont.truetype('arial.ttf', size=48)
             draw.text(
                 (0, 0),
                 "Cls: {:.3f}, Seg:{:.3f}".format(cls_pred.item(), mask_cls_logit.item()),
