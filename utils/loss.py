@@ -15,7 +15,6 @@ def construct_loss_function(opt):
     elif opt.cls_criterion == "CE":
         cls_criterion = nn.CrossEntropyLoss()
     elif opt.cls_criterion == "Focal":
-        # cls_criterion = FocalLoss_Cls(smooth=1e-6, alpha=opt.focal_alpha_cls, gamma=opt.focal_gamma_cls)
         cls_criterion = FocalLoss_Cls(alpha=opt.focal_alpha_cls, gamma=opt.focal_gamma_cls, reduction='mean')
     else:
         raise Exception("Unexpected Classification Loss {}".format(opt.cls_criterion))
@@ -25,12 +24,9 @@ def construct_loss_function(opt):
         seg_criterion = BinaryDiceLoss(smooth=1e-6, p=1)
     elif opt.seg_criterion == "DiceBCE":
         seg_criterion = DiceBCELoss(smooth=1e-6, p=1)
-    elif opt.seg_criterion == "DiceBCE_Weak":
-        seg_criterion = DiceBCE_WeakSup_Loss(smooth=1e-6, p=1)
     elif opt.seg_criterion == "IoU":
         seg_criterion = IoU_Loss(smooth=1e-6)
     elif opt.seg_criterion == "Focal":
-        # seg_criterion = FocalLoss(smooth=1e-6, alpha=opt.focal_alpha_seg, gamma=opt.focal_gamma_seg)
         seg_criterion = FocalLoss(smooth=1e-6, alpha=opt.focal_alpha_seg, gamma=opt.focal_gamma_seg, reduction='mean')
     elif opt.seg_criterion == "DiceFocal":
         seg_criterion = DiceFocalLoss(alpha=opt.focal_alpha_seg, gamma=opt.focal_gamma_seg, smooth=1e-6, p=1)
@@ -66,7 +62,6 @@ def construct_loss_function_cls(opt):
     elif opt.cls_criterion == "CE":
         cls_criterion = nn.CrossEntropyLoss()
     elif opt.cls_criterion == "Focal":
-        # cls_criterion = FocalLoss_Cls(smooth=1e-6, alpha=opt.focal_alpha_cls, gamma=opt.focal_gamma_cls)
         cls_criterion = FocalLoss_Cls(alpha=opt.focal_alpha_cls, gamma=opt.focal_gamma_cls, reduction='mean')
     else:
         raise Exception("Unexpected Classification Loss {}".format(opt.cls_criterion))
@@ -333,38 +328,6 @@ class IoU_Loss(nn.Module):
         return IoU
 
 
-# Custom Focal Loss
-# class FocalLoss(nn.Module):
-#     def __init__(self, alpha, gamma, smooth=1e-6):
-#         super(FocalLoss, self).__init__()
-#         self.smooth = smooth
-#         self.alpha = alpha
-#         self.gamma = gamma
-#         self.sigmoid = nn.Sigmoid()
-#
-#     def __call__(self, preds, target, has_mask, labels_cls, batch_idx):
-#         # Check whether the batch sizes of prediction and target match [BS, c, h, w]
-#         assert preds.shape[0] == target.shape[0], "pred & target batch size don't match"
-#
-#         # Compute predictions after sigmoid activation
-#         preds = self.sigmoid(preds)
-#
-#         # Flatten the prediction and target. Shape = [BS, c*h*w]]
-#         preds = preds.contiguous().view(preds.shape[0], -1)
-#         target = target.contiguous().view(target.shape[0], -1)
-#
-#         # Compute Binary Cross Entropy
-#         BCE = torch.mean(F.binary_cross_entropy(preds, target, reduction="none"), dim=1)
-#         BCE = torch.mul(BCE, has_mask) / (torch.sum(has_mask) + self.smooth)
-#
-#         # Compute Focal Loss
-#         BCE_EXP = torch.exp(-BCE)
-#         focal_loss = self.alpha * (1.0 - BCE_EXP) ** self.gamma * BCE
-#         focal_loss = torch.sum(focal_loss)
-#
-#         return focal_loss
-
-
 # Custom Focal Loss for Segmentation
 class FocalLoss(nn.Module):
     """
@@ -454,61 +417,6 @@ class FocalLoss(nn.Module):
             )
 
         return loss
-
-
-# Custom Weakly-Supervised Loss (Max. pixel value)
-class DiceBCE_WeakSup_Loss(nn.Module):
-    def __init__(self, smooth=1e-6, p=1):
-        super(DiceBCE_WeakSup_Loss, self).__init__()
-        self.smooth = smooth
-        self.p = p
-        self.sigmoid = nn.Sigmoid()
-
-    def __call__(self, preds, target, has_mask, labels_cls, batch_idx):
-        # Check whether the batch sizes of prediction and target match [BS, c, h, w]
-        assert preds.shape[0] == target.shape[0], "pred & target batch size don't match"
-
-        # Compute predictions after sigmoid activation and maximum pixel values
-        preds = self.sigmoid(preds)
-        max_val, _ = torch.max(preds.view(preds.shape[0], -1), dim=1, keepdim=True)
-
-        """SUPERVISED LOSS"""
-        # Flatten the prediction and target. Shape = [BS, c*h*w]]
-        preds = preds.contiguous().view(preds.shape[0], -1)
-        target = target.contiguous().view(target.shape[0], -1)
-
-        # Compute intersection between prediction and target. Shape = [BS, ]
-        intersection = torch.sum(torch.mul(preds, target), dim=1)
-
-        # Compute the sum of prediction and target. Shape = [BS, ]
-        denominator = torch.sum(preds.pow(self.p), dim=1) + torch.sum(target.pow(self.p), dim=1)
-
-        # Compute Dice loss of shape
-        dice_loss = 1.0 - torch.divide((2 * intersection + self.smooth), (denominator + self.smooth))
-
-        # Multiply with has_mask to only have loss for samples with mask. Shape = [BS]
-        dice_loss = torch.mul(dice_loss, has_mask) / (torch.sum(has_mask) + self.smooth)
-        dice_loss = torch.sum(dice_loss)
-
-        # Calculate BCE
-        BCE_sup = torch.mean(F.binary_cross_entropy(preds, target, reduction="none"), dim=1)
-        BCE_sup = torch.mul(BCE_sup, has_mask) / (torch.sum(has_mask) + self.smooth)
-        BCE_sup = torch.sum(BCE_sup)
-
-        # Calculate combined loss
-        dice_BCE_sup = BCE_sup + dice_loss
-
-        """SEMI-SUPERVISED LOSS"""
-        BCE_semsup = torch.mean(
-            F.binary_cross_entropy(max_val, labels_cls, reduction="none"),
-            dim=1,
-        )
-        BCE_semsup = torch.mean(BCE_semsup)
-
-        """COMPUTE COMBINED LOSS"""
-        comb_loss = dice_BCE_sup + BCE_semsup
-
-        return comb_loss
 
 
 # Custom DiceFocal Loss Function

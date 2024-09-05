@@ -4,6 +4,7 @@ import os
 import argparse
 import re
 import json
+import random
 from typing import Optional
 
 import pytorch_lightning as pl
@@ -18,7 +19,6 @@ from data.dataset_cls import (
     DATASET_TRAIN_TEST,
     DATASET_VAL,
     read_inclusion,
-    read_inclusion_split,
     sample_weights,
 )
 
@@ -34,7 +34,7 @@ from utils.optim import construct_optimizer, construct_scheduler
 """""" """""" """""" """"""
 
 
-# CADe1.0: Specify function for defining inclusion criteria for training, finetuning and development set
+# Specify function for defining inclusion criteria for training, finetuning and development set
 def get_data_inclusion_criteria():
     criteria = dict()
 
@@ -112,18 +112,65 @@ class WLEDataModuleTrain(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
         # Find data that satisfies the inclusion criteria regarding training data
-        train_inclusion = read_inclusion_split(
+        train_inclusion = read_inclusion(
             path=self.data_dir,
             criteria=self.criteria["train"],
-            split_perc=self.opt.split_perc,
-            split_seed=self.opt.split_seed,
         )
+
+        if self.opt.training_content == 'Both':
+            if self.opt.frame_quality == 'HQ':
+                train_inclusion_frames = read_inclusion(path=CACHE_PATH_FRAMES, criteria=self.criteria["train"])
+                train_inclusion_frames = random.sample(
+                    train_inclusion_frames, k=int(len(train_inclusion_frames) * self.opt.frame_perc)
+                )
+                train_inclusion = train_inclusion + train_inclusion_frames
+            elif self.opt.frame_quality == 'MQ':
+                train_inclusion_frames = read_inclusion(path=CACHE_PATH_FRAMES_MQ, criteria=self.criteria["train"])
+                train_inclusion_frames = random.sample(
+                    train_inclusion_frames, k=int(len(train_inclusion_frames) * self.opt.frame_perc)
+                )
+                train_inclusion = train_inclusion + train_inclusion_frames
+            elif self.opt.frame_quality == 'LQ':
+                train_inclusion_frames = read_inclusion(path=CACHE_PATH_FRAMES_LQ, criteria=self.criteria["train"])
+                train_inclusion_frames = random.sample(
+                    train_inclusion_frames, k=int(len(train_inclusion_frames) * self.opt.frame_perc)
+                )
+                train_inclusion = train_inclusion + train_inclusion_frames
+            elif self.opt.frame_quality == 'HQ-MQ':
+                train_inclusion_frames_hq = read_inclusion(path=CACHE_PATH_FRAMES, criteria=self.criteria["train"])
+                train_inclusion_frames_hq = random.sample(
+                    train_inclusion_frames_hq, k=int(len(train_inclusion_frames_hq) * self.opt.frame_perc)
+                )
+                train_inclusion_frames_mq = read_inclusion(path=CACHE_PATH_FRAMES_MQ, criteria=self.criteria["train"])
+                train_inclusion_frames_mq = random.sample(
+                    train_inclusion_frames_mq, k=int(len(train_inclusion_frames_mq) * self.opt.frame_perc)
+                )
+                train_inclusion = train_inclusion + train_inclusion_frames_hq + train_inclusion_frames_mq
+            elif self.opt.frame_quality == 'HQ-LQ':
+                train_inclusion_frames_hq = read_inclusion(path=CACHE_PATH_FRAMES, criteria=self.criteria["train"])
+                train_inclusion_frames_hq = random.sample(
+                    train_inclusion_frames_hq, k=int(len(train_inclusion_frames_hq) * self.opt.frame_perc)
+                )
+                train_inclusion_frames_lq = read_inclusion(path=CACHE_PATH_FRAMES_LQ, criteria=self.criteria["train"])
+                train_inclusion_frames_lq = random.sample(
+                    train_inclusion_frames_lq, k=int(len(train_inclusion_frames_lq) * self.opt.frame_perc)
+                )
+                train_inclusion = train_inclusion + train_inclusion_frames_hq + train_inclusion_frames_lq
+            elif self.opt.frame_quality == 'MQ-LQ':
+                train_inclusion_frames_mq = read_inclusion(path=CACHE_PATH_FRAMES_MQ, criteria=self.criteria["train"])
+                train_inclusion_frames_mq = random.sample(
+                    train_inclusion_frames_mq, k=int(len(train_inclusion_frames_mq) * self.opt.frame_perc)
+                )
+                train_inclusion_frames_lq = read_inclusion(path=CACHE_PATH_FRAMES_LQ, criteria=self.criteria["train"])
+                train_inclusion_frames_lq = random.sample(
+                    train_inclusion_frames_lq, k=int(len(train_inclusion_frames_lq) * self.opt.frame_perc)
+                )
+                train_inclusion = train_inclusion + train_inclusion_frames_mq + train_inclusion_frames_lq
 
         # Find data that satisfies the inclusion criteria regarding validation data
         val_inclusion = read_inclusion(path=self.data_dir, criteria=self.criteria["val"])
-        if self.opt.modality == "WLE":
-            val_inclusion_frames = read_inclusion(path=CACHE_PATH_FRAMES, criteria=self.criteria["val"])
-            val_inclusion = val_inclusion + val_inclusion_frames
+        val_inclusion_frames = read_inclusion(path=CACHE_PATH_FRAMES, criteria=self.criteria["val"])
+        val_inclusion = val_inclusion + val_inclusion_frames
 
         # Construct weights for the samples
         train_weights = sample_weights(train_inclusion)
@@ -181,9 +228,9 @@ class WLEDataModuleTrain(pl.LightningDataModule):
 # https://pytorch-lightning.readthedocs.io/en/stable/common/production_inference.html
 
 
-class WLEModel(pl.LightningModule):
+class WLE_Model(pl.LightningModule):
     def __init__(self, opt):
-        super(WLEModel, self).__init__()
+        super(WLE_Model, self).__init__()
 
         # Fix seed for reproducibility
         pl.seed_everything(seed=opt.seed, workers=True)
@@ -363,7 +410,6 @@ def run(opt):
 
     """SETUP PYTORCH LIGHTNING DATAMODULE"""
     print("Starting PyTorch Lightning DataModule...")
-
     criteria = get_data_inclusion_criteria()
 
     if opt.augmentations == "domain":
@@ -371,6 +417,10 @@ def run(opt):
     else:
         data_transforms = augmentations(opt)
 
+    """SETUP PYTORCH LIGHTNING MODEL"""
+    print("Starting PyTorch Lightning Model...")
+
+    """CONSTRUCT DATA AND CALLBACKS"""
     dm_train = WLEDataModuleTrain(
         data_dir=CACHE_PATH,
         criteria=criteria,
@@ -378,16 +428,12 @@ def run(opt):
         opt=opt,
     )
 
-    """SETUP PYTORCH LIGHTNING MODEL"""
-    print("Starting PyTorch Lightning Model...")
-
     # Construct Loggers for PyTorch Lightning
     wandb_logger_train = WandbLogger(
         name="{}".format(opt.experimentname),
-        project="WLE CADe Benchmark",
+        project="...",
         save_dir=os.path.join(SAVE_DIR, opt.experimentname),
     )
-    lr_monitor_train = LearningRateMonitor(logging_interval="step")
 
     # Construct callback used for training the model
     checkpoint_callback_train = ModelCheckpoint(
@@ -399,6 +445,9 @@ def run(opt):
         save_weights_only=True,
     )
 
+    # Construct learning rate monitor
+    lr_monitor_train = LearningRateMonitor(logging_interval="step")
+
     # Construct callback for early stopping of the training
     early_stopping = EarlyStopping(
         monitor='val_auc', min_delta=0.0005, patience=25, mode='max', check_on_train_epoch_end=False
@@ -407,7 +456,7 @@ def run(opt):
     """TRAINING PHASE"""
 
     # Construct PyTorch Lightning Trainer
-    pl_model = WLEModel(opt=opt)
+    pl_model = WLE_Model(opt=opt)
     trainer = pl.Trainer(
         devices=1,
         accelerator="gpu",
@@ -443,14 +492,17 @@ if __name__ == "__main__":
     parser.add_argument("--experimentname", type=str)
     parser.add_argument("--seed", type=int, default=7)
 
+    # DEFINE OUTPUT FOLDER
+    parser.add_argument("--output_folder", type=str, default=None)
+
     # DEFINE MODEL
-    parser.add_argument("--backbone", type=str, default="MetaFormer-CAS18-FCN")
+    parser.add_argument("--backbone", type=str, default="CaFormer-S18")
     parser.add_argument("--weights", type=str, default="ImageNet", help="ImageNet, GastroNet, GastroNet-DSA")
 
     # DEFINE OPTIMIZER, CRITERION, SCHEDULER
-    parser.add_argument("--optimizer", type=str, default="Adam")
-    parser.add_argument("--scheduler", type=str, default="Plateau")
-    parser.add_argument("--cls_criterion", type=str, default="BCE")
+    parser.add_argument("--optimizer", type=str, default="Adam", help="Adam, SGD")
+    parser.add_argument("--scheduler", type=str, default="Plateau", help="Plateau, Step, Cosine")
+    parser.add_argument("--cls_criterion", type=str, default="BCE", help="BCE, Focal")
     parser.add_argument("--cls_criterion_weight", type=float, default=1.0)
     parser.add_argument("--label_smoothing", type=float, default=0.01)
     parser.add_argument('--focal_alpha_cls', type=float, default=-1.0)
@@ -462,10 +514,10 @@ if __name__ == "__main__":
     parser.add_argument("--num_classes", type=int, default=1)
     parser.add_argument("--augmentations", type=str, default="default", help="default, domain")
 
-    # DATA PERCENTAGE PARAMS
-    parser.add_argument("--split_perc", type=float, default=1.0)
-    parser.add_argument("--split_seed", type=int, default=7)
-    parser.add_argument("--modality", type=str, default="WLE", help="WLE, NBI")
+    # FRAME PARAMS
+    parser.add_argument("--training_content", type=str, default="Images", help="Both, Images")
+    parser.add_argument('--frame_quality', type=str, default='HQ', help='HQ, MQ, LQ, HQ-MQ, HQ-LQ, MQ-LQ')
+    parser.add_argument('--frame_perc', type=float, default=1.0)
 
     # TRAINING PARAMETERS
     parser.add_argument("--num_epochs", type=int, default=150)
@@ -474,16 +526,15 @@ if __name__ == "__main__":
     opt = parser.parse_args()
 
     """SPECIFY CACHE PATH"""
-    if opt.modality == "WLE":
-        CACHE_PATH = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val-test_plausible")
-        CACHE_PATH_FRAMES = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames")
-    elif opt.modality == "NBI":
-        CACHE_PATH = ...
-    else:
-        raise ValueError("Modality not supported")
+    CACHE_PATH = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val-test_plausible")
+    CACHE_PATH_FRAMES = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames")
+    CACHE_PATH_FRAMES_MQ = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames_MQ")
+    CACHE_PATH_FRAMES_LQ = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames_LQ")
 
     """SPECIFY PATH FOR SAVING"""
-    SAVE_DIR = os.path.join(os.getcwd(), "wle-bm-exp-v2")
+    SAVE_DIR = os.path.join(os.getcwd(), opt.output_folder)
+    if not os.path.exists(SAVE_DIR):
+        os.mkdir(SAVE_DIR)
 
     # Check if direction for logging the information already exists; otherwise make direction
     if not os.path.exists(os.path.join(SAVE_DIR, opt.experimentname)):

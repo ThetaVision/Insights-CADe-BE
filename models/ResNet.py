@@ -327,24 +327,7 @@ class ResNet(nn.Module):
 
     def _load_pretrained_model(self, pretrained):
         # Define initialization
-        if pretrained == 'ImageNet':
-            pretrain_dict = model_zoo.load_url(self.url)
-        elif pretrained == 'GastroNet':
-            pretrain_dict = torch.load(
-                os.path.join(
-                    os.getcwd(),
-                    '..',
-                    'pretrained',
-                    'checkpoint_200ep_teacher_adapted.pth',
-                )
-            )
-        model_dict = {}
-        state_dict = self.state_dict()
-        for k, v in pretrain_dict.items():
-            if k in state_dict and 'fc.weight' not in k and 'fc.bias' not in k:
-                model_dict[k] = v
-        state_dict.update(model_dict)
-        self.load_state_dict(state_dict)
+        pretrain_dict = model_zoo.load_url(self.url)
 
 
 # # Functions to create various different versions of ResNet

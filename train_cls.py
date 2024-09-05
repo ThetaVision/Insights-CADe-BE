@@ -18,8 +18,6 @@ from data.dataset_cls import (
     DATASET_TRAIN_TEST,
     DATASET_VAL,
     read_inclusion,
-    read_inclusion_cad2,
-    read_inclusion_split,
     sample_weights,
 )
 
@@ -35,7 +33,7 @@ from utils.optim import construct_optimizer, construct_scheduler
 """""" """""" """""" """"""
 
 
-# CADe1.0: Specify function for defining inclusion criteria for training, finetuning and development set
+# Specify function for defining inclusion criteria for training, finetuning and development set
 def get_data_inclusion_criteria():
     criteria = dict()
 
@@ -47,84 +45,6 @@ def get_data_inclusion_criteria():
 
     criteria["val"] = {
         "dataset": ["validation"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    return criteria
-
-
-# CADe2.0: Specify function for defining inclusion criteria for training, finetuning and development set
-# CADx2.0: Specify function for defining inclusion criteria for training, finetuning and development set
-def get_data_inclusion_criteria_cad2():
-    criteria = dict()
-
-    criteria["nbi-train"] = {
-        "dataset": ["training"],
-        "source": ["images"],
-        "class": ["ndbe", "neo"],
-        "cap": ["cap", "no cap"],
-        "type": ["focus", "overview"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["nbi-train-frames"] = {
-        "dataset": ["training"],
-        "source": ["frames"],
-        "class": ["ndbe", "neo"],
-        "cap": ["cap", "no cap"],
-        "type": ["focus", "overview"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["nbi-train-frames-cap"] = {
-        "dataset": ["training"],
-        "source": ["frames"],
-        "class": ["ndbe", "neo"],
-        "cap": ["cap"],
-        "type": ["focus", "overview"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["nbi-train-frames-no-cap"] = {
-        "dataset": ["training"],
-        "source": ["frames"],
-        "class": ["ndbe", "neo"],
-        "cap": ["no cap"],
-        "type": ["focus", "overview"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["nbi-train-frames-no-cap-overview"] = {
-        "dataset": ["training"],
-        "source": ["frames"],
-        "class": ["ndbe", "neo"],
-        "cap": ["no cap"],
-        "type": ["overview"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["nbi-val"] = {
-        "dataset": ["validation"],
-        "source": ["images"],
-        "class": ["ndbe", "neo"],
-        "cap": ["cap", "no cap"],
-        "type": ["focus", "overview"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["nbi-val-frames"] = {
-        "dataset": ["validation"],
-        "source": ["frames"],
-        "class": ["ndbe", "neo"],
-        "cap": ["cap", "no cap"],
-        "type": ["focus", "overview"],
         "min_height": None,
         "min_width": None,
     }
@@ -191,11 +111,9 @@ class WLEDataModuleTrain(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
         # Find data that satisfies the inclusion criteria regarding training data
-        train_inclusion = read_inclusion_split(
+        train_inclusion = read_inclusion(
             path=self.data_dir,
             criteria=self.criteria["train"],
-            split_perc=self.opt.split_perc,
-            split_seed=self.opt.split_seed,
         )
 
         if self.opt.training_content == 'Both':
@@ -249,115 +167,9 @@ class WLEDataModuleTrain(pl.LightningDataModule):
                 train_inclusion = train_inclusion + train_inclusion_frames_mq + train_inclusion_frames_lq
 
         # Find data that satisfies the inclusion criteria regarding validation data
-        val_inclusion = read_inclusion(path=self.data_dir, criteria=self.criteria["dev"])
-        val_inclusion_frames = read_inclusion(path=CACHE_PATH_FRAMES, criteria=self.criteria["dev"])
+        val_inclusion = read_inclusion(path=self.data_dir, criteria=self.criteria["val"])
+        val_inclusion_frames = read_inclusion(path=CACHE_PATH_FRAMES, criteria=self.criteria["val"])
         val_inclusion = val_inclusion + val_inclusion_frames
-
-        # Construct weights for the samples
-        train_weights = sample_weights(train_inclusion)
-        self.train_sampler = WeightedRandomSampler(
-            weights=train_weights,
-            num_samples=len(train_inclusion),
-            replacement=True,
-        )
-
-        # Construct datasets
-        self.train_set = DATASET_TRAIN_TEST(
-            inclusion=train_inclusion,
-            transform=self.transforms["train"],
-            random_noise=True,
-        )
-        self.val_set_test = DATASET_TRAIN_TEST(
-            inclusion=val_inclusion,
-            transform=self.transforms["test"],
-            random_noise=False,
-        )
-        self.val_set_train = DATASET_VAL(inclusion=val_inclusion, transform=self.transforms["val"])
-
-    def train_dataloader(self):
-        return DataLoader(
-            self.train_set,
-            batch_size=opt.batchsize,
-            shuffle=False,
-            num_workers=4,
-            pin_memory=True,
-            prefetch_factor=4,
-            sampler=self.train_sampler,
-        )
-
-    def val_dataloader(self):
-        return DataLoader(
-            self.val_set_train,
-            batch_size=opt.batchsize,
-            num_workers=4,
-            pin_memory=True,
-            prefetch_factor=4,
-        )
-
-    def test_dataloader(self):
-        return DataLoader(self.val_set_test, batch_size=opt.batchsize, num_workers=4)
-
-
-class NBIDataModuleTrain(pl.LightningDataModule):
-    def __init__(self, data_dir, criteria, transforms, opt):
-        super().__init__()
-        self.data_dir = data_dir
-        self.criteria = criteria
-        self.transforms = transforms
-        self.train_sampler = None
-        self.train_set = None
-        self.val_set_train = None
-        self.val_set_test = None
-        self.opt = opt
-
-    def setup(self, stage: Optional[str] = None):
-        # Find data that satisfies the inclusion criteria regarding training data
-        train_inclusion = read_inclusion_cad2(path=self.data_dir, criteria=self.criteria["nbi-train"])
-
-        if self.opt.training_content == 'Both':
-            if self.opt.frame_cap == 'Both':
-                train_inclusion_frames = read_inclusion_cad2(
-                    path=self.data_dir, criteria=self.criteria["nbi-train-frames"]
-                )
-                random.seed(self.opt.seed)
-                train_inclusion_frames = random.sample(
-                    train_inclusion_frames, k=int(len(train_inclusion_frames) * self.opt.frame_perc)
-                )
-                train_inclusion = train_inclusion + train_inclusion_frames
-            elif self.opt.frame_cap == 'Cap':
-                train_inclusion_frames = read_inclusion_cad2(
-                    path=self.data_dir, criteria=self.criteria["nbi-train-frames-cap"]
-                )
-                random.seed(self.opt.seed)
-                train_inclusion_frames = random.sample(
-                    train_inclusion_frames, k=int(len(train_inclusion_frames) * self.opt.frame_perc)
-                )
-                train_inclusion = train_inclusion + train_inclusion_frames
-            elif self.opt.frame_cap == 'NoCap':
-                if self.opt.frame_type == 'Overview':
-                    train_inclusion_frames = read_inclusion_cad2(
-                        path=self.data_dir, criteria=self.criteria["nbi-train-frames-no-cap-overview"]
-                    )
-                    random.seed(self.opt.seed)
-                    train_inclusion_frames = random.sample(
-                        train_inclusion_frames, k=int(len(train_inclusion_frames) * self.opt.frame_perc)
-                    )
-                    train_inclusion = train_inclusion + train_inclusion_frames
-                else:
-                    train_inclusion_frames = read_inclusion_cad2(
-                        path=self.data_dir, criteria=self.criteria["nbi-train-frames-no-cap"]
-                    )
-                    random.seed(self.opt.seed)
-                    train_inclusion_frames = random.sample(
-                        train_inclusion_frames, k=int(len(train_inclusion_frames) * self.opt.frame_perc)
-                    )
-                    train_inclusion = train_inclusion + train_inclusion_frames
-
-        # Find data that satisfies the inclusion criteria regarding validation data
-        val_inclusion = read_inclusion_cad2(path=self.data_dir, criteria=self.criteria["nbi-val"])
-        if self.opt.validation_content == 'Both':
-            val_inclusion_frames = read_inclusion_cad2(path=self.data_dir, criteria=self.criteria["nbi-val-frames"])
-            val_inclusion = val_inclusion + val_inclusion_frames
 
         # Construct weights for the samples
         train_weights = sample_weights(train_inclusion)
@@ -415,9 +227,9 @@ class NBIDataModuleTrain(pl.LightningDataModule):
 # https://pytorch-lightning.readthedocs.io/en/stable/common/production_inference.html
 
 
-class WLE_NBI_Model(pl.LightningModule):
+class WLE_Model(pl.LightningModule):
     def __init__(self, opt):
-        super(WLE_NBI_Model, self).__init__()
+        super(WLE_Model, self).__init__()
 
         # Fix seed for reproducibility
         pl.seed_everything(seed=opt.seed, workers=True)
@@ -597,10 +409,7 @@ def run(opt):
 
     """SETUP PYTORCH LIGHTNING DATAMODULE"""
     print("Starting PyTorch Lightning DataModule...")
-    if 'CAD2' in opt.experimentname:
-        criteria = get_data_inclusion_criteria_cad2()
-    else:
-        criteria = get_data_inclusion_criteria()
+    criteria = get_data_inclusion_criteria()
 
     if opt.augmentations == "domain":
         data_transforms = d_augmentations(opt)
@@ -610,35 +419,20 @@ def run(opt):
     """SETUP PYTORCH LIGHTNING MODEL"""
     print("Starting PyTorch Lightning Model...")
 
-    """DISTINGUISH BETWEEN WLE AND NBI"""
-    if opt.modality == "WLE":
-        dm_train = WLEDataModuleTrain(
-            data_dir=CACHE_PATH,
-            criteria=criteria,
-            transforms=data_transforms,
-            opt=opt,
-        )
+    """CONSTRUCT DATA AND CALLBACKS"""
+    dm_train = WLEDataModuleTrain(
+        data_dir=CACHE_PATH,
+        criteria=criteria,
+        transforms=data_transforms,
+        opt=opt,
+    )
 
-        # Construct Loggers for PyTorch Lightning
-        wandb_logger_train = WandbLogger(
-            name="{}".format(opt.experimentname),
-            project="WLE CADe Benchmark",
-            save_dir=os.path.join(SAVE_DIR, opt.experimentname),
-        )
-    elif opt.modality == "NBI":
-        dm_train = NBIDataModuleTrain(
-            data_dir=CACHE_PATH,
-            criteria=criteria,
-            transforms=data_transforms,
-            opt=opt,
-        )
-
-        # Construct Loggers for PyTorch Lightning
-        wandb_logger_train = WandbLogger(
-            name="{}".format(opt.experimentname),
-            project="NBI CADx Benchmark",
-            save_dir=os.path.join(SAVE_DIR, opt.experimentname),
-        )
+    # Construct Loggers for PyTorch Lightning
+    wandb_logger_train = WandbLogger(
+        name="{}".format(opt.experimentname),
+        project="...",
+        save_dir=os.path.join(SAVE_DIR, opt.experimentname),
+    )
 
     # Construct callback used for training the model
     checkpoint_callback_train = ModelCheckpoint(
@@ -661,10 +455,9 @@ def run(opt):
     """TRAINING PHASE"""
 
     # Construct PyTorch Lightning Trainer
-    pl_model = WLE_NBI_Model(opt=opt)
+    pl_model = WLE_Model(opt=opt)
     trainer = pl.Trainer(
         devices=1,
-        # precision='16',
         accelerator="gpu",
         max_epochs=opt.num_epochs,
         logger=wandb_logger_train,
@@ -720,17 +513,10 @@ if __name__ == "__main__":
     parser.add_argument("--num_classes", type=int, default=1)
     parser.add_argument("--augmentations", type=str, default="default", help="default, domain")
 
-    # DATA PERCENTAGE PARAMS
-    parser.add_argument("--split_perc", type=float, default=1.0)
-    parser.add_argument("--split_seed", type=int, default=7)
-    parser.add_argument("--modality", type=str, default="WLE", help="WLE, NBI")
-
     # FRAME PARAMS
     parser.add_argument("--training_content", type=str, default="Images", help="Both, Images")
-    parser.add_argument('--frame_cap', type=str, default='Both', help='Both, Cap, NoCap')
-    parser.add_argument('--frame_type', type=str, default='Both', help='Both, Focus, Overview')
+    parser.add_argument('--frame_quality', type=str, default='HQ', help='HQ, MQ, LQ, HQ-MQ, HQ-LQ, MQ-LQ')
     parser.add_argument('--frame_perc', type=float, default=1.0)
-    parser.add_argument("--validation_content", type=str, default="Images", help="Both, Images")
 
     # TRAINING PARAMETERS
     parser.add_argument("--num_epochs", type=int, default=150)
@@ -739,15 +525,10 @@ if __name__ == "__main__":
     opt = parser.parse_args()
 
     """SPECIFY CACHE PATH"""
-    if opt.modality == "WLE":
-        CACHE_PATH = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val-test_plausible")
-        CACHE_PATH_FRAMES = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames")
-        CACHE_PATH_FRAMES_MQ = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames_MQ")
-        CACHE_PATH_FRAMES_LQ = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames_LQ")
-    elif opt.modality == "NBI":
-        CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_nbi_dev_cad2.json')
-    else:
-        raise ValueError("Modality not supported")
+    CACHE_PATH = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val-test_plausible")
+    CACHE_PATH_FRAMES = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames")
+    CACHE_PATH_FRAMES_MQ = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames_MQ")
+    CACHE_PATH_FRAMES_LQ = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames_LQ")
 
     """SPECIFY PATH FOR SAVING"""
     SAVE_DIR = os.path.join(os.getcwd(), opt.output_folder)

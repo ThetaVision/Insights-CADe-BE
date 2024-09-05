@@ -70,7 +70,6 @@ class SwinUperNet(nn.Module):
         # Define UperNet blocks
         self.PPN = PSPModule(feature_channels[-1])
         self.FPN = FPN_fuse(feature_channels, fpn_out=feature_channels[0])
-        # self.head = nn.Conv2d(feature_channels[0], opt.num_classes, kernel_size=3, padding=1)
         self.head = nn.Conv2d(feature_channels[0], 1, kernel_size=3, padding=1)
 
         # Layers for classification branch

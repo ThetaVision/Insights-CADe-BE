@@ -16,7 +16,7 @@ from torch2trt import torch2trt, TRTModule
 from sklearn.metrics import roc_curve, roc_auc_score, precision_recall_curve
 from sklearn.metrics import auc as pr_rec_auc
 
-from data.dataset import read_inclusion, read_inclusion_cad2, augmentations
+from data.dataset import read_inclusion, augmentations
 from train import check_cuda, find_best_model
 from models.model import Model
 from utils.metrics import BinaryDiceMetricEval
@@ -69,30 +69,6 @@ def get_data_inclusion_criteria():
         'mask_only': True,
     }
 
-    criteria['argos'] = {
-        'modality': ['wle'],
-        'dataset': ["Dataset 3", "Dataset 4", "Dataset 5"],
-        'min_height': None,
-        'min_width': None,
-        'mask_only': True,
-    }
-
-    criteria['argos-ds3'] = {
-        'modality': ['wle'],
-        'dataset': ["Dataset 3"],
-        'min_height': None,
-        'min_width': None,
-        'mask_only': True,
-    }
-
-    criteria['argos-ds4'] = {
-        'modality': ['wle'],
-        'dataset': ["Dataset 4"],
-        'min_height': None,
-        'min_width': None,
-        'mask_only': True,
-    }
-
     criteria['argos-ds34'] = {
         'modality': ['wle'],
         'dataset': ["Dataset 3", "Dataset 4"],
@@ -109,71 +85,29 @@ def get_data_inclusion_criteria():
         'mask_only': True,
     }
 
-    criteria['validation-xxl'] = {
-        'dataset': ['AC Image', 'BM Image', 'BM Video', 'BM-AC Image Spare', 'Val Image', 'Val Image Spare'],
-        'min_height': None,
-        'min_width': None,
-        'mask_only': True,
-    }
-
-    # Criteria for CADe2.0 datasets
-    criteria["dev-cad2"] = {
-        "dataset": ["validation"],
-        "type": ['original', 'enhanced'],
-        "source": ["images"],
-        "class": ["neo", "ndbe"],
+    criteria["iq-triplet"] = {
+        "dataset": ["validation-robustness"],
         "min_height": None,
         "min_width": None,
     }
 
-    criteria["dev-cad2-org"] = {
-        "dataset": ["validation"],
-        "type": ['original'],
-        "source": ["images"],
-        "class": ["neo", "ndbe"],
+    criteria["iq-triplet-high"] = {
+        "dataset": ["validation-robustness"],
+        "quality": ["high"],
         "min_height": None,
         "min_width": None,
     }
 
-    criteria["dev-cad2-enh"] = {
-        "dataset": ["validation"],
-        "type": ['enhanced'],
-        "source": ["images"],
-        "class": ["neo", "ndbe"],
+    criteria["iq-triplet-medium"] = {
+        "dataset": ["validation-robustness"],
+        "quality": ["medium"],
         "min_height": None,
         "min_width": None,
     }
 
-    criteria["dev-cad2-frames-HQ"] = {
-        "dataset": ["validation"],
-        "type": ['original'],
-        "source": ["frames HQ"],
-        "class": ["neo", "ndbe"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["dev-cad2-frames-MQ"] = {
-        "dataset": ["validation"],
-        "type": ['original'],
-        "source": ["frames MQ"],
-        "class": ["neo", "ndbe"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["dev-cad2-frames-LQ"] = {
-        "dataset": ["validation"],
-        "type": ['original'],
-        "source": ["frames LQ"],
-        "class": ["neo", "ndbe"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    # Criteria for UEGW abstract dataset
-    criteria['dev-UEGW'] = {
-        "dataset": ["validation"],
+    criteria["iq-triplet-low"] = {
+        "dataset": ["validation-robustness"],
+        "quality": ["low"],
         "min_height": None,
         "min_width": None,
     }
@@ -329,11 +263,8 @@ def run(opt, f_txt, exp_name, inf_set):
     # Construct data
     criteria = get_data_inclusion_criteria()
 
-    # Sets for CADe1.0 datasets
-    if inf_set == 'Val':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['dev'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Test':
+    # Test Sets
+    if inf_set == 'Test':
         val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['test'])
         print('Found {} images...'.format(len(val_inclusion)))
     elif inf_set == 'All-Comers':
@@ -345,37 +276,23 @@ def run(opt, f_txt, exp_name, inf_set):
     elif inf_set == 'BORN':
         val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['born'])
         print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'ARGOS':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['born'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'ARGOS-DS3':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['argos-ds3'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'ARGOS-DS4':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['argos-ds4'])
+    elif inf_set == 'ARGOS-DS34':
+        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['argos-ds34'])
         print('Found {} images...'.format(len(val_inclusion)))
     elif inf_set == 'ARGOS-DS5':
         val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['argos-ds5'])
         print('Found {} images...'.format(len(val_inclusion)))
-
-    # Paths for CADe2.0 datasets
-    elif inf_set == 'Val-CAD2':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2'])
+    elif inf_set == 'IQ-Triplet':
+        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['iq-triplet'])
         print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Org':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-org'])
+    elif inf_set == 'IQ-Triplet-HQ':
+        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['iq-triplet-high'])
         print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Enh':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-enh'])
+    elif inf_set == 'IQ-Triplet-MQ':
+        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['iq-triplet-medium'])
         print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Frames-HQ':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-frames-HQ'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Frames-MQ':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-frames-MQ'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Frames-LQ':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-frames-LQ'])
+    elif inf_set == 'IQ-Triplet-LQ':
+        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['iq-triplet-low'])
         print('Found {} images...'.format(len(val_inclusion)))
 
     # Paths for Journal: Validation Set with different quality levels by means of video frames
@@ -393,6 +310,7 @@ def run(opt, f_txt, exp_name, inf_set):
     elif inf_set == 'Val-Img':
         val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['dev-neo'])
         print('Found {} images...'.format(len(val_inclusion)))
+
     else:
         raise Exception('Unrecognized DEFINE_SET: {}'.format(inf_set))
 
@@ -485,25 +403,6 @@ def run(opt, f_txt, exp_name, inf_set):
             if label == np.array([0], dtype=np.float32):
                 has_mask = 1
 
-            # # Old Situation
-            # # Open mask for neoplasia cases
-            # if len(mask) > 0:
-            #     maskpath = random.choice(mask)
-            #     mask_gt = Image.open(maskpath).convert('1')
-            #
-            #     # IN THE TEST SET 2 MISMATCHES ARE OCCURRING WHAT TO DO WITH THIS!!!!!
-            #     if mask_gt.size != image.size:
-            #         mask_gt = mask_gt.resize(image.size, resample=Image.NEAREST).crop((roi[2], roi[0], roi[3], roi[1]))
-            #     else:
-            #         mask_gt = mask_gt.crop((roi[2], roi[0], roi[3], roi[1]))
-            #     has_mask = 1
-            # # Create mask with all zeros when there are no available ones
-            # else:
-            #     mask_np = np.zeros(image.size)
-            #     mask_gt = Image.fromarray(mask_np, mode='RGB').convert('1')
-            #     mask_gt = mask_gt.crop((roi[2], roi[0], roi[3], roi[1]))
-
-            # New Situation
             # Open mask for neoplasia cases
             if len(mask) > 0:
                 mask_dict = extract_masks(image, mask)
@@ -782,10 +681,7 @@ def run(opt, f_txt, exp_name, inf_set):
     print('avg_dice_avg: {:.4f}\n'.format(avg_dice_cls.item()))
 
     # Write Classification performance to file
-    # Datasets for CADe1.0
-    if inf_set == 'Val':
-        f_txt.write(f'### Validation Set (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Test':
+    if inf_set == 'Test':
         f_txt.write(f'### Test Set (Threshold = {opt.threshold}) ###')
     elif inf_set == 'All-Comers':
         f_txt.write(f'### All-Comers (Threshold = {opt.threshold}) ###')
@@ -793,28 +689,18 @@ def run(opt, f_txt, exp_name, inf_set):
         f_txt.write(f'### Corrupt Test Set (Threshold = {opt.threshold}) ###')
     elif inf_set == 'BORN':
         f_txt.write(f'### BORN Module (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'ARGOS':
-        f_txt.write(f'### ARGOS (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'ARGOS-DS3':
-        f_txt.write(f'### ARGOS-Dataset 3 (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'ARGOS-DS4':
-        f_txt.write(f'### ARGOS-Dataset 4 (Threshold = {opt.threshold}) ###')
+    elif inf_set == 'ARGOS-DS34':
+        f_txt.write(f'### ARGOS-Dataset 3/4 (Threshold = {opt.threshold}) ###')
     elif inf_set == 'ARGOS-DS5':
         f_txt.write(f'### ARGOS-Dataset 5 (Threshold = {opt.threshold}) ###')
-
-    # Datasets for CADe2.0
-    elif inf_set == 'Val-CAD2':
-        f_txt.write(f'### Validation Set CAD2.0 (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Val-CAD2-Org':
-        f_txt.write(f'### Validation Set CAD2.0 - Original (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Val-CAD2-Enh':
-        f_txt.write(f'### Validation Set CAD2.0 - Enhanced (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Val-CAD2-Frames-HQ':
-        f_txt.write(f'### Validation Set CAD2.0 - Frames HQ (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Val-CAD2-Frames-MQ':
-        f_txt.write(f'### Validation Set CAD2.0 - Frames MQ (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Val-CAD2-Frames-LQ':
-        f_txt.write(f'### Validation Set CAD2.0 - Frames LQ (Threshold = {opt.threshold}) ###')
+    elif inf_set == 'IQ-Triplet':
+        f_txt.write(f'### IQ-Triplet (Threshold = {opt.threshold}) ###')
+    elif inf_set == 'IQ-Triplet-HQ':
+        f_txt.write(f'### IQ-Triplet-HQ (Threshold = {opt.threshold}) ###')
+    elif inf_set == 'IQ-Triplet-MQ':
+        f_txt.write(f'### IQ-Triplet-MQ (Threshold = {opt.threshold}) ###')
+    elif inf_set == 'IQ-Triplet-LQ':
+        f_txt.write(f'### IQ-Triplet-LQ (Threshold = {opt.threshold}) ###')
 
     # Datasets for Journal experiments
     elif inf_set == 'Val-HQ':
@@ -885,44 +771,6 @@ def run(opt, f_txt, exp_name, inf_set):
     df.to_excel(os.path.join(OUTPUT_PATH, 'cls_scores_TRT.xlsx'))
 
 
-def fps_check(opt):
-    # Set parameters
-    num_samples = 1000
-    reps = 5
-
-    # Test Device
-    device = check_cuda()
-
-    # Construct Model and load weights
-    model = TRTModule()
-    model.load_state_dict(torch.load(os.path.join(SAVE_DIR, opt.experimentname, 'final_trt_model.pth')), strict=True)
-
-    # Create random dummy input
-    dummy = torch.rand(1, 3, opt.imagesize, opt.imagesize).cuda()
-
-    # Push model to GPU
-    model.cuda().eval()
-
-    # Do fps check
-    reps_list = []
-    for j in range(reps):
-        with torch.no_grad():
-            starttime = time.perf_counter()
-            for i in range(num_samples):
-                cls_pred, seg_pred = model(dummy)
-            stoptime = time.perf_counter()
-
-        inference_time = stoptime - starttime
-        avg_inference_sample = inference_time / num_samples
-        avg_inference_fps = 1 / avg_inference_sample
-        reps_list.append(avg_inference_fps)
-
-        print('Average Inference Time per sample: {} sec.'.format(avg_inference_sample))
-        print('Average fps: {}'.format(avg_inference_fps))
-
-    print(f'Average fps over {reps} repetitions of {num_samples} samples: {np.mean(reps_list)}')
-
-
 """""" """""" """"""
 """" EXECUTION """
 """""" """""" """"""
@@ -930,7 +778,7 @@ def fps_check(opt):
 
 if __name__ == '__main__':
     """SPECIFY PATH FOR SAVING"""
-    SAVE_DIR = os.path.join(os.getcwd(), 'wle-cade2')
+    SAVE_DIR = os.path.join(os.getcwd(), '')
 
     """ARGUMENT PARSER"""
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -967,77 +815,48 @@ if __name__ == '__main__':
 
         # Loop over all sets
         for inf_set in opt.evaluate_sets:
-            # Sets for CADe1.0 experiments
-            if inf_set == 'Val':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_train-val-test_plausible'
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set - TRT')
-            elif inf_set == 'Test':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_train-val-test_plausible'
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Test Set (Test) - TRT')
+            if inf_set == 'Test':
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Test Set (Test)')
             elif inf_set == 'All-Comers':
-                CACHE_PATH = (
-                    'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_allcomers_plausible'
-                )
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'All-Comers Set - TRT')
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'All-Comers Set')
             elif inf_set == 'Test-Corrupt':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_test-corrupt'
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Corrupt Test Set - TRT')
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Corrupt Test Set')
             elif inf_set == 'BORN':
-                # CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_born_sweet'
-                CACHE_PATH = (
-                    'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_born_sweet_subset'
-                )
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'BORN Module Set - TRT')
-            elif inf_set == 'ARGOS':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_argos_soft'
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'ARGOS Fuji Set - TRT')
-            elif inf_set == 'ARGOS-DS3':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_argos_soft'
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'ARGOS Fuji Set - DS3 - TRT')
-            elif inf_set == 'ARGOS-DS4':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_argos_soft'
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'ARGOS Fuji Set - DS4 - TRT')
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'BORN Module Set')
             elif inf_set == 'ARGOS-DS34':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_argos_soft'
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'ARGOS Fuji Set - DS34 - TRT')
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'ARGOS Fuji Set - DS34')
             elif inf_set == 'ARGOS-DS5':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_argos_soft'
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'ARGOS Fuji Set - DS5 - TRT')
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'ARGOS Fuji Set - DS5')
+            elif inf_set == 'IQ-Triplet':
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'IQ-Triplet Set')
+            elif inf_set == 'IQ-Triplet-HQ':
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'IQ-Triplet Set - HQ')
+            elif inf_set == 'IQ-Triplet-MQ':
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'IQ-Triplet Set - MQ')
+            elif inf_set == 'IQ-Triplet-LQ':
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'IQ-Triplet Set - LQ')
 
-            # Sets for CADe2.0 experiments
-            elif inf_set == 'Val-CAD2':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2_new_am.json')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set - TRT')
-            elif inf_set == 'Val-CAD2-Org':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2_new_am.json')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set - Original - TRT')
-            elif inf_set == 'Val-CAD2-Enh':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2_new_am.json')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set - Enhanced - TRT')
-            elif inf_set == 'Val-CAD2-Frames-HQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2_new_am.json')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set - Frames HQ - TRT')
-            elif inf_set == 'Val-CAD2-Frames-MQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2_new_am.json')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set - Frames MQ - TRT')
-            elif inf_set == 'Val-CAD2-Frames-LQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2_new_am.json')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set - Frames LQ - TRT')
-
-            # Sets for journal validation
+            # Sets for validation
             elif inf_set == 'Val-HQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_train-val-test_plausible')
-                CACHE_PATH_EXTRA = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_train-val_frames')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Val - HQ - TRT')
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
+                CACHE_PATH_EXTRA = os.path.join(os.getcwd(), 'cache', '')
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Val - HQ')
             elif inf_set == 'Val-MQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_train-val_frames_MQ')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Val - MQ - TRT')
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Val - MQ')
             elif inf_set == 'Val-LQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_train-val_frames_LQ')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Val - LQ - TRT')
-            elif inf_set == 'Val-Img':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_train-val-test_plausible')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Val - Img - TRT')
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Val - LQ')
             else:
                 raise ValueError
 
@@ -1046,6 +865,3 @@ if __name__ == '__main__':
 
         # Close text file
         f_txt.close()
-
-        # # Do FPS check
-        # fps_check(opt=opt)

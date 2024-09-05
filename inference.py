@@ -5,23 +5,24 @@ import time
 import json
 import pandas as pd
 
-from PIL import Image  # , ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import torch
 
-# import cv2
+import cv2
 
 from torchinfo import summary
 
 from sklearn.metrics import roc_curve, roc_auc_score, precision_recall_curve
 from sklearn.metrics import auc as pr_rec_auc
 
-from data.dataset import read_inclusion, read_inclusion_cad2, augmentations
+from data.dataset import read_inclusion,  augmentations
 from train import check_cuda, find_best_model
 from models.model import Model
 from utils.metrics import BinaryDiceMetricEval
 
 import matplotlib
+import matplotlib.pyplot as plt
 
 
 matplotlib.use('TkAgg')
@@ -35,7 +36,6 @@ matplotlib.use('TkAgg')
 def get_data_inclusion_criteria():
     criteria = dict()
 
-    # Criteria for CADe1.0 datasets
     criteria['dev'] = {
         'modality': ['wle'],
         'dataset': ['validation'],
@@ -69,30 +69,6 @@ def get_data_inclusion_criteria():
         'mask_only': True,
     }
 
-    criteria['argos'] = {
-        'modality': ['wle'],
-        'dataset': ["Dataset 3", "Dataset 4", "Dataset 5"],
-        'min_height': None,
-        'min_width': None,
-        'mask_only': True,
-    }
-
-    criteria['argos-ds3'] = {
-        'modality': ['wle'],
-        'dataset': ["Dataset 3"],
-        'min_height': None,
-        'min_width': None,
-        'mask_only': True,
-    }
-
-    criteria['argos-ds4'] = {
-        'modality': ['wle'],
-        'dataset': ["Dataset 4"],
-        'min_height': None,
-        'min_width': None,
-        'mask_only': True,
-    }
-
     criteria['argos-ds34'] = {
         'modality': ['wle'],
         'dataset': ["Dataset 3", "Dataset 4"],
@@ -104,13 +80,6 @@ def get_data_inclusion_criteria():
     criteria['argos-ds5'] = {
         'modality': ['wle'],
         'dataset': ["Dataset 5"],
-        'min_height': None,
-        'min_width': None,
-        'mask_only': True,
-    }
-
-    criteria['validation-xxl'] = {
-        'dataset': ['AC Image', 'BM Image', 'BM Video', 'BM-AC Image Spare', 'Val Image', 'Val Image Spare'],
         'min_height': None,
         'min_width': None,
         'mask_only': True,
@@ -139,68 +108,6 @@ def get_data_inclusion_criteria():
     criteria["iq-triplet-low"] = {
         "dataset": ["validation-robustness"],
         "quality": ["low"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    # Criteria for CADe2.0 datasets
-    criteria["dev-cad2"] = {
-        "dataset": ["validation"],
-        "type": ['original', 'enhanced'],
-        "source": ["images"],
-        "class": ["neo", "ndbe"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["dev-cad2-org"] = {
-        "dataset": ["validation"],
-        "type": ['original'],
-        "source": ["images"],
-        "class": ["neo", "ndbe"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["dev-cad2-enh"] = {
-        "dataset": ["validation"],
-        "type": ['enhanced'],
-        "source": ["images"],
-        "class": ["neo", "ndbe"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["dev-cad2-frames-HQ"] = {
-        "dataset": ["validation"],
-        "type": ['original'],
-        "source": ["frames HQ"],
-        "class": ["neo", "ndbe"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["dev-cad2-frames-MQ"] = {
-        "dataset": ["validation"],
-        "type": ['original'],
-        "source": ["frames MQ"],
-        "class": ["neo", "ndbe"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["dev-cad2-frames-LQ"] = {
-        "dataset": ["validation"],
-        "type": ['original'],
-        "source": ["frames LQ"],
-        "class": ["neo", "ndbe"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    # Criteria for UEGW abstract dataset
-    criteria['dev-UEGW'] = {
-        "dataset": ["validation"],
         "min_height": None,
         "min_width": None,
     }
@@ -352,50 +259,8 @@ def run_val_thresholds(opt, exp_name, inf_set):
     # Construct data
     criteria = get_data_inclusion_criteria()
 
-    # Sets for CADe1.0 datasets
-    if inf_set == 'Val':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['dev'])
-        print('Found {} images...'.format(len(val_inclusion)))
-
-    # Paths for CADe2.0 datasets
-    elif inf_set == 'Val-CAD2':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Org':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-org'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Enh':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-enh'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Frames-HQ':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-frames-HQ'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Frames-MQ':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-frames-MQ'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Frames-LQ':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-frames-LQ'])
-        print('Found {} images...'.format(len(val_inclusion)))
-
-    # Paths for Cosmo additional datasets
-    elif inf_set == 'Val-CAD-A3-V':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2'])
-        argos_inclusion = read_inclusion(path=CACHE_PATH_ARG, criteria=criteria['argos-ds3'])
-        val_inclusion = val_inclusion + argos_inclusion
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD-AC-V':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2'])
-        argos_inclusion = read_inclusion(path=CACHE_PATH_ARG, criteria=criteria['argos'])
-        val_inclusion = val_inclusion + argos_inclusion
-        print('Found {} images...'.format(len(val_inclusion)))
-
-    # Paths for datasets UEGW Abstract
-    elif inf_set == 'Val-UEGW':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-UEGW'])
-        print('Found {} images...'.format(len(val_inclusion)))
-
-    # Paths for Journal: Validation Set with different quality levels by means of video frames
-    elif inf_set == 'Val-HQ':
+    # Validation Set with different quality levels by means of video frames
+    if inf_set == 'Val-HQ':
         val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['dev'])
         val_inclusion_extra = read_inclusion(path=CACHE_PATH_EXTRA, criteria=criteria['dev'])
         val_inclusion = val_inclusion + val_inclusion_extra
@@ -469,24 +334,6 @@ def run_val_thresholds(opt, exp_name, inf_set):
             # Set has_mask for NDBE cases
             if label == np.array([0], dtype=np.float32):
                 has_mask = 1
-
-            # # Old Situation
-            # # Open mask for neoplasia cases
-            # if len(mask) > 0:
-            #     maskpath = random.choice(mask)
-            #     mask_gt = Image.open(maskpath).convert('1')
-            #
-            #     # IN THE TEST SET 2 MISMATCHES ARE OCCURRING WHAT TO DO WITH THIS!!!!!
-            #     if mask_gt.size != image.size:
-            #         mask_gt = mask_gt.resize(image.size, resample=Image.NEAREST).crop((roi[2], roi[0], roi[3], roi[1]))
-            #     else:
-            #         mask_gt = mask_gt.crop((roi[2], roi[0], roi[3], roi[1]))
-            #     has_mask = 1
-            # # Create mask with all zeros when there are no available ones
-            # else:
-            #     mask_np = np.zeros(image.size)
-            #     mask_gt = Image.fromarray(mask_np, mode='RGB').convert('1')
-            #     mask_gt = mask_gt.crop((roi[2], roi[0], roi[3], roi[1]))
 
             # New Situation
             # Open mask for neoplasia cases
@@ -629,11 +476,8 @@ def run(opt, f_txt, exp_name, inf_set):
     # Construct data
     criteria = get_data_inclusion_criteria()
 
-    # Sets for CADe1.0 datasets
-    if inf_set == 'Val':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['dev'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Test':
+    # Test Sets
+    if inf_set == 'Test':
         val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['test'])
         print('Found {} images...'.format(len(val_inclusion)))
     elif inf_set == 'All-Comers':
@@ -645,72 +489,23 @@ def run(opt, f_txt, exp_name, inf_set):
     elif inf_set == 'BORN':
         val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['born'])
         print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'ARGOS':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['born'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'ARGOS-DS3':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['argos-ds3'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'ARGOS-DS4':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['argos-ds4'])
-        print('Found {} images...'.format(len(val_inclusion)))
     elif inf_set == 'ARGOS-DS34':
         val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['argos-ds34'])
         print('Found {} images...'.format(len(val_inclusion)))
     elif inf_set == 'ARGOS-DS5':
         val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['argos-ds5'])
         print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Validation-XXL':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['validation-xxl'])
-        print('Found {} images...'.format(len(val_inclusion)))
     elif inf_set == 'IQ-Triplet':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['iq-triplet'])
+        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['iq-triplet'])
         print('Found {} images...'.format(len(val_inclusion)))
     elif inf_set == 'IQ-Triplet-HQ':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['iq-triplet-high'])
+        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['iq-triplet-high'])
         print('Found {} images...'.format(len(val_inclusion)))
     elif inf_set == 'IQ-Triplet-MQ':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['iq-triplet-medium'])
+        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['iq-triplet-medium'])
         print('Found {} images...'.format(len(val_inclusion)))
     elif inf_set == 'IQ-Triplet-LQ':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['iq-triplet-low'])
-        print('Found {} images...'.format(len(val_inclusion)))
-
-    # Paths for CADe2.0 datasets
-    elif inf_set == 'Val-CAD2':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Org':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-org'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Enh':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-enh'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Frames-HQ':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-frames-HQ'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Frames-MQ':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-frames-MQ'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD2-Frames-LQ':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2-frames-LQ'])
-        print('Found {} images...'.format(len(val_inclusion)))
-
-    # Paths for Cosmo additional datasets
-    elif inf_set == 'Val-CAD-A3-V':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2'])
-        argos_inclusion = read_inclusion(path=CACHE_PATH_ARG, criteria=criteria['argos-ds3'])
-        val_inclusion = val_inclusion + argos_inclusion
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-CAD-AC-V':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-cad2'])
-        argos_inclusion = read_inclusion(path=CACHE_PATH_ARG, criteria=criteria['argos'])
-        val_inclusion = val_inclusion + argos_inclusion
-        print('Found {} images...'.format(len(val_inclusion)))
-
-    # Paths for datasets UEGW Abstract
-    elif inf_set == 'Val-UEGW':
-        val_inclusion = read_inclusion_cad2(path=CACHE_PATH, criteria=criteria['dev-UEGW'])
+        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['iq-triplet-low'])
         print('Found {} images...'.format(len(val_inclusion)))
 
     # Paths for Journal: Validation Set with different quality levels by means of video frames
@@ -794,25 +589,6 @@ def run(opt, f_txt, exp_name, inf_set):
             if label == np.array([0], dtype=np.float32):
                 has_mask = 1
 
-            # # Old Situation
-            # # Open mask for neoplasia cases
-            # if len(mask) > 0:
-            #     maskpath = random.choice(mask)
-            #     mask_gt = Image.open(maskpath).convert('1')
-            #
-            #     # IN THE TEST SET 2 MISMATCHES ARE OCCURRING WHAT TO DO WITH THIS!!!!!
-            #     if mask_gt.size != image.size:
-            #         mask_gt = mask_gt.resize(image.size, resample=Image.NEAREST).crop((roi[2], roi[0], roi[3], roi[1]))
-            #     else:
-            #         mask_gt = mask_gt.crop((roi[2], roi[0], roi[3], roi[1]))
-            #     has_mask = 1
-            # # Create mask with all zeros when there are no available ones
-            # else:
-            #     mask_np = np.zeros(image.size)
-            #     mask_gt = Image.fromarray(mask_np, mode='RGB').convert('1')
-            #     mask_gt = mask_gt.crop((roi[2], roi[0], roi[3], roi[1]))
-
-            # New Situation
             # Open mask for neoplasia cases
             if len(mask) > 0:
                 mask_dict = extract_masks(image, mask)
@@ -856,7 +632,6 @@ def run(opt, f_txt, exp_name, inf_set):
             mask_dice = mask_gt.unsqueeze(0)
 
             # Get prediction of model and perform Sigmoid activation
-            # cls_pred, seg_pred = model(image_t)
             out1, out2 = model(image_t)
             cls_pred = out1 if out1.dim() == 2 else out2
             seg_pred = out2 if out2.dim() == 4 else out1
@@ -931,93 +706,78 @@ def run(opt, f_txt, exp_name, inf_set):
                 ]
             logi += 1
 
-            # # Process predicted mask and save to specified folder
-            # mask = mask.permute(1, 2, 0)
-            # maskpred = np.array(mask * 255, dtype=np.uint8)
-            # maskpred_pil = Image.fromarray(cv2.cvtColor(maskpred, cv2.COLOR_GRAY2RGB), mode='RGB')
-            #
-            # # Make folders
-            # if not os.path.exists(os.path.join(OUTPUT_PATH, 'heatmap', 'wrong')):
-            #     os.makedirs(os.path.join(OUTPUT_PATH, 'heatmap', 'wrong'))
-            # if not os.path.exists(os.path.join(OUTPUT_PATH, 'heatmap', 'cls c-seg w')):
-            #     os.makedirs(os.path.join(OUTPUT_PATH, 'heatmap', 'cls c-seg w'))
-            # if not os.path.exists(os.path.join(OUTPUT_PATH, 'heatmap', 'cls w-seg c')):
-            #     os.makedirs(os.path.join(OUTPUT_PATH, 'heatmap', 'cls w-seg c'))
-            # if not os.path.exists(os.path.join(OUTPUT_PATH, 'heatmap', 'correct')):
-            #     os.makedirs(os.path.join(OUTPUT_PATH, 'heatmap', 'correct'))
-            # if not os.path.exists(os.path.join(OUTPUT_PATH, 'ROC')):
-            #     os.makedirs(os.path.join(OUTPUT_PATH, 'ROC'))
-            # if not os.path.exists(os.path.join(OUTPUT_PATH, 'masks')):
-            #     os.makedirs(os.path.join(OUTPUT_PATH, 'masks'))
-            #
-            # fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
-            # ax1.imshow(mask_gt[0, :, :], cmap='gray')
-            # ax1.set_title('Ground Truth')
-            # ax1.axis('off')
-            # ax2.imshow(maskpred_pil)
-            # ax2.axis('off')
-            # ax2.set_title('Generated Mask')
-            # plt.tight_layout()
-            # plt.savefig(
-            #     os.path.join(OUTPUT_PATH, 'masks', img_name + '.png'),
-            #     bbox_inches='tight',
-            # )
-            # plt.close()
-            #
-            # # Visualization Journal Masks
-            # # if not os.path.exists(os.path.join(OUTPUT_PATH, 'masks')):
-            # #     os.makedirs(os.path.join(OUTPUT_PATH, 'masks'))
-            # # if has_mask == 1 and target:
-            # #     plt.imshow(maskpred_pil)
-            # #     plt.axis('off')
-            # #     plt.tight_layout()
-            # #     plt.savefig(
-            # #         os.path.join(OUTPUT_PATH, 'masks', img_name + '.png'),
-            # #         bbox_inches='tight',
-            # #         pad_inches=0.0,
-            # #         dpi=300,
-            # #     )
-            # #     plt.close()
-            #
-            # #  Transform to heatmap
-            # heatmap = cv2.cvtColor(
-            #     cv2.applyColorMap(maskpred, cv2.COLORMAP_JET),
-            #     cv2.COLOR_BGR2RGB,
-            # )
-            # heatmap = heatmap / 255.0
-            #
-            # # Define alpha value
-            # alphavalue = 0.5
-            # alpha = np.where(maskpred > 0.1, alphavalue, 0.0)
-            #
-            # # Process heatmap to PIL image, resize and convert to RGB
-            # heatmap = np.array(np.concatenate((heatmap, alpha), axis=-1) * 255, dtype=np.uint8)
-            # heatmap_pil = Image.fromarray(heatmap, mode='RGBA')
-            # w = int(image.size[0])
-            # h = int(image.size[1])
-            # heatmap_pil = heatmap_pil.resize(size=(w, h), resample=Image.NEAREST)
-            # heatmap_pil = heatmap_pil.convert('RGB')
-            #
-            # # Create original image with heatmap overlay
-            # composite = Image.blend(heatmap_pil, image, 0.6)
-            # draw = ImageDraw.Draw(composite)
-            # font = ImageFont.truetype('C:/Users/s157128/Documents/Roboto/Roboto-Regular.ttf', size=48)
-            # draw.text(
-            #     (0, 0),
-            #     "Cls: {:.3f}, Seg:{:.3f}".format(cls_pred.item(), mask_cls_logit.item()),
-            #     (255, 255, 255),
-            #     font=font,
-            # )
-            #
-            # # Save the composite images in folders for wrong and correct classifications
-            # if mask_cls != target and cls != target:
-            #     composite.save(os.path.join(OUTPUT_PATH, 'heatmap', 'wrong', img_name + '.jpg'))
-            # elif mask_cls != target and cls == target:
-            #     composite.save(os.path.join(OUTPUT_PATH, 'heatmap', 'cls c-seg w', img_name + '.jpg'))
-            # elif mask_cls == target and cls != target:
-            #     composite.save(os.path.join(OUTPUT_PATH, 'heatmap', 'cls w-seg c', img_name + '.jpg'))
-            # else:
-            #     composite.save(os.path.join(OUTPUT_PATH, 'heatmap', 'correct', img_name + '.jpg'))
+            # Process predicted mask and save to specified folder
+            mask = mask.permute(1, 2, 0)
+            maskpred = np.array(mask * 255, dtype=np.uint8)
+            maskpred_pil = Image.fromarray(cv2.cvtColor(maskpred, cv2.COLOR_GRAY2RGB), mode='RGB')
+
+            # Make folders
+            if not os.path.exists(os.path.join(OUTPUT_PATH, 'heatmap', 'wrong')):
+                os.makedirs(os.path.join(OUTPUT_PATH, 'heatmap', 'wrong'))
+            if not os.path.exists(os.path.join(OUTPUT_PATH, 'heatmap', 'cls c-seg w')):
+                os.makedirs(os.path.join(OUTPUT_PATH, 'heatmap', 'cls c-seg w'))
+            if not os.path.exists(os.path.join(OUTPUT_PATH, 'heatmap', 'cls w-seg c')):
+                os.makedirs(os.path.join(OUTPUT_PATH, 'heatmap', 'cls w-seg c'))
+            if not os.path.exists(os.path.join(OUTPUT_PATH, 'heatmap', 'correct')):
+                os.makedirs(os.path.join(OUTPUT_PATH, 'heatmap', 'correct'))
+            if not os.path.exists(os.path.join(OUTPUT_PATH, 'ROC')):
+                os.makedirs(os.path.join(OUTPUT_PATH, 'ROC'))
+            if not os.path.exists(os.path.join(OUTPUT_PATH, 'masks')):
+                os.makedirs(os.path.join(OUTPUT_PATH, 'masks'))
+
+            fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
+            ax1.imshow(mask_gt[0, :, :], cmap='gray')
+            ax1.set_title('Ground Truth')
+            ax1.axis('off')
+            ax2.imshow(maskpred_pil)
+            ax2.axis('off')
+            ax2.set_title('Generated Mask')
+            plt.tight_layout()
+            plt.savefig(
+                os.path.join(OUTPUT_PATH, 'masks', img_name + '.png'),
+                bbox_inches='tight',
+            )
+            plt.close()
+
+            #  Transform to heatmap
+            heatmap = cv2.cvtColor(
+                cv2.applyColorMap(maskpred, cv2.COLORMAP_JET),
+                cv2.COLOR_BGR2RGB,
+            )
+            heatmap = heatmap / 255.0
+
+            # Define alpha value
+            alphavalue = 0.5
+            alpha = np.where(maskpred > 0.1, alphavalue, 0.0)
+
+            # Process heatmap to PIL image, resize and convert to RGB
+            heatmap = np.array(np.concatenate((heatmap, alpha), axis=-1) * 255, dtype=np.uint8)
+            heatmap_pil = Image.fromarray(heatmap, mode='RGBA')
+            w = int(image.size[0])
+            h = int(image.size[1])
+            heatmap_pil = heatmap_pil.resize(size=(w, h), resample=Image.NEAREST)
+            heatmap_pil = heatmap_pil.convert('RGB')
+
+            # Create original image with heatmap overlay
+            composite = Image.blend(heatmap_pil, image, 0.6)
+            draw = ImageDraw.Draw(composite)
+            font = ImageFont.truetype('C:/Users/s157128/Documents/Roboto/Roboto-Regular.ttf', size=48)
+            draw.text(
+                (0, 0),
+                "Cls: {:.3f}, Seg:{:.3f}".format(cls_pred.item(), mask_cls_logit.item()),
+                (255, 255, 255),
+                font=font,
+            )
+
+            # Save the composite images in folders for wrong and correct classifications
+            if mask_cls != target and cls != target:
+                composite.save(os.path.join(OUTPUT_PATH, 'heatmap', 'wrong', img_name + '.jpg'))
+            elif mask_cls != target and cls == target:
+                composite.save(os.path.join(OUTPUT_PATH, 'heatmap', 'cls c-seg w', img_name + '.jpg'))
+            elif mask_cls == target and cls != target:
+                composite.save(os.path.join(OUTPUT_PATH, 'heatmap', 'cls w-seg c', img_name + '.jpg'))
+            else:
+                composite.save(os.path.join(OUTPUT_PATH, 'heatmap', 'correct', img_name + '.jpg'))
 
     # Compute accuracy, sensitivity, specificity, AUC, precision, recall, AUPRC and Dice metrics (Classification only)
     accuracy_cls = (tp_cls + tn_cls) / (tp_cls + fn_cls + tn_cls + fp_cls)
@@ -1091,10 +851,7 @@ def run(opt, f_txt, exp_name, inf_set):
     print('avg_dice_avg: {:.4f}\n'.format(avg_dice_cls.item()))
 
     # Write Classification performance to file
-    # Datasets for CADe1.0
-    if inf_set == 'Val':
-        f_txt.write(f'### Validation Set (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Test':
+    if inf_set == 'Test':
         f_txt.write(f'### Test Set (Threshold = {opt.threshold}) ###')
     elif inf_set == 'All-Comers':
         f_txt.write(f'### All-Comers (Threshold = {opt.threshold}) ###')
@@ -1102,18 +859,10 @@ def run(opt, f_txt, exp_name, inf_set):
         f_txt.write(f'### Corrupt Test Set (Threshold = {opt.threshold}) ###')
     elif inf_set == 'BORN':
         f_txt.write(f'### BORN Module (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'ARGOS':
-        f_txt.write(f'### ARGOS (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'ARGOS-DS3':
-        f_txt.write(f'### ARGOS-Dataset 3 (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'ARGOS-DS4':
-        f_txt.write(f'### ARGOS-Dataset 4 (Threshold = {opt.threshold}) ###')
     elif inf_set == 'ARGOS-DS34':
         f_txt.write(f'### ARGOS-Dataset 3/4 (Threshold = {opt.threshold}) ###')
     elif inf_set == 'ARGOS-DS5':
         f_txt.write(f'### ARGOS-Dataset 5 (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Validation-XXL':
-        f_txt.write(f'### Validation Set XXL (Threshold = {opt.threshold}) ###')
     elif inf_set == 'IQ-Triplet':
         f_txt.write(f'### IQ-Triplet (Threshold = {opt.threshold}) ###')
     elif inf_set == 'IQ-Triplet-HQ':
@@ -1122,30 +871,6 @@ def run(opt, f_txt, exp_name, inf_set):
         f_txt.write(f'### IQ-Triplet-MQ (Threshold = {opt.threshold}) ###')
     elif inf_set == 'IQ-Triplet-LQ':
         f_txt.write(f'### IQ-Triplet-LQ (Threshold = {opt.threshold}) ###')
-
-    # Datasets for CADe2.0
-    elif inf_set == 'Val-CAD2':
-        f_txt.write(f'### Validation Set CAD2.0 (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Val-CAD2-Org':
-        f_txt.write(f'### Validation Set CAD2.0 - Original (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Val-CAD2-Enh':
-        f_txt.write(f'### Validation Set CAD2.0 - Enhanced (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Val-CAD2-Frames-HQ':
-        f_txt.write(f'### Validation Set CAD2.0 - Frames HQ (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Val-CAD2-Frames-MQ':
-        f_txt.write(f'### Validation Set CAD2.0 - Frames MQ (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Val-CAD2-Frames-LQ':
-        f_txt.write(f'### Validation Set CAD2.0 - Frames LQ (Threshold = {opt.threshold}) ###')
-
-    # Datasets for Cosmo additional experiments
-    elif inf_set == 'Val-CAD-A3-V':
-        f_txt.write(f'### Validation Set CAD2.0 + ARGOS DS 3 (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Val-CAD-AC-V':
-        f_txt.write(f'### Validation Set CAD2.0 + ARGOS DS 3/4/5 (Threshold = {opt.threshold}) ###')
-
-    # Datasets for UEGW abstract experiments
-    elif inf_set == 'Val-UEGW':
-        f_txt.write(f'### Validation Set UEGW Abstract (Threshold = {opt.threshold}) ###')
 
     # Datasets for Journal experiments
     elif inf_set == 'Val-HQ':
@@ -1193,75 +918,27 @@ def run(opt, f_txt, exp_name, inf_set):
     f_txt.write('\npr_auc_avg: {:.4f}'.format(pr_auc_avg))
     f_txt.write('\n\navg_dice_cls: {:.4f}\n\n'.format(avg_dice_cls.item()))
 
-    # # Plot ROC curve for classification results and save to specified folder
-    # plt.plot(fpr_cls, tpr_cls, marker='.', label='Classification head')
-    # plt.plot(fpr_seg, tpr_seg, marker='.', label='Segmentation head')
-    # plt.plot(fpr_avg, tpr_avg, marker='.', label='Average')
-    # plt.plot([0, 1], [0, 1], linestyle='--', label='No Skill')
-    # plt.xlabel('False Positive Rate')
-    # plt.ylabel('True Positive Rate')
-    # major_ticks = np.arange(0.0, 1.01, 0.05)
-    # plt.xticks(major_ticks, fontsize='x-small')
-    # plt.yticks(major_ticks)
-    # plt.xlim((-0.01, 1.01))
-    # plt.ylim((-0.01, 1.01))
-    # plt.grid(True)
-    # plt.grid(alpha=0.5)
-    # plt.legend(loc='lower right')
-    # plt.title('ROC AUC')
-    # plt.savefig(os.path.join(OUTPUT_PATH, 'ROC', 'auc_curve.jpg'))
-    # plt.close()
-    #
-    # # Save dataframe as csv file
-    # df.to_excel(os.path.join(OUTPUT_PATH, 'cls_scores.xlsx'))
+    # Plot ROC curve for classification results and save to specified folder
+    plt.plot(fpr_cls, tpr_cls, marker='.', label='Classification head')
+    plt.plot(fpr_seg, tpr_seg, marker='.', label='Segmentation head')
+    plt.plot(fpr_avg, tpr_avg, marker='.', label='Average')
+    plt.plot([0, 1], [0, 1], linestyle='--', label='No Skill')
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    major_ticks = np.arange(0.0, 1.01, 0.05)
+    plt.xticks(major_ticks, fontsize='x-small')
+    plt.yticks(major_ticks)
+    plt.xlim((-0.01, 1.01))
+    plt.ylim((-0.01, 1.01))
+    plt.grid(True)
+    plt.grid(alpha=0.5)
+    plt.legend(loc='lower right')
+    plt.title('ROC AUC')
+    plt.savefig(os.path.join(OUTPUT_PATH, 'ROC', 'auc_curve.jpg'))
+    plt.close()
 
-
-def fps_check(opt, use_cuda=True):
-    # Set parameters
-    num_samples = 1000
-    reps = 5
-
-    # Test Device
-    if use_cuda:
-        device = check_cuda()
-
-    # Construct Model and load weights
-    model = Model(opt=opt)
-
-    # Create random dummy input
-    if use_cuda:
-        dummy = torch.rand(1, 3, opt.imagesize, opt.imagesize).cuda()
-    else:
-        dummy = torch.rand(1, 3, opt.imagesize, opt.imagesize)
-
-    # Push model to GPU
-    if use_cuda:
-        model.cuda()
-
-    # Do model summary
-    summary(model=model, input_size=(1, 3, opt.imagesize, opt.imagesize))
-
-    # Set Model in evaluation mode and do fps check
-    model.eval()
-
-    # Do fps check
-    reps_list = []
-    for j in range(reps):
-        with torch.no_grad():
-            starttime = time.perf_counter()
-            for i in range(num_samples):
-                cls_pred, seg_pred = model(dummy)
-            stoptime = time.perf_counter()
-
-        inference_time = stoptime - starttime
-        avg_inference_sample = inference_time / num_samples
-        avg_inference_fps = 1 / avg_inference_sample
-        reps_list.append(avg_inference_fps)
-
-        print('Average Inference Time per sample: {} sec.'.format(avg_inference_sample))
-        print('Average fps: {}'.format(avg_inference_fps))
-
-    print(f'Average fps over {reps} repetitions of {num_samples} samples: {np.mean(reps_list)}')
+    # Save dataframe as csv file
+    df.to_excel(os.path.join(OUTPUT_PATH, 'cls_scores.xlsx'))
 
 
 """""" """""" """"""
@@ -1270,7 +947,7 @@ def fps_check(opt, use_cuda=True):
 
 if __name__ == '__main__':
     """SPECIFY PATH FOR SAVING"""
-    SAVE_DIR = os.path.join(os.getcwd(), 'wle-cade2')
+    SAVE_DIR = os.path.join(os.getcwd(), '')
 
     """ARGUMENT PARSER"""
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -1309,115 +986,48 @@ if __name__ == '__main__':
 
         # Loop over all sets
         for inf_set in opt.evaluate_sets:
-            # Sets for CADe1.0 experiments
-            if inf_set == 'Val':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_train-val-test_plausible'
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set')
-            elif inf_set == 'Test':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_train-val-test_plausible'
+            if inf_set == 'Test':
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
                 OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Test Set (Test)')
             elif inf_set == 'All-Comers':
-                CACHE_PATH = (
-                    'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_allcomers_plausible'
-                )
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
                 OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'All-Comers Set')
             elif inf_set == 'Test-Corrupt':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_test-corrupt'
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
                 OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Corrupt Test Set')
             elif inf_set == 'BORN':
-                # CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_born_sweet'
-                CACHE_PATH = (
-                    'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_born_sweet_subset'
-                )
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
                 OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'BORN Module Set')
-            elif inf_set == 'ARGOS':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_argos_soft'
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'ARGOS Fuji Set')
-            elif inf_set == 'ARGOS-DS3':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_argos_soft'
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'ARGOS Fuji Set - DS3')
-            elif inf_set == 'ARGOS-DS4':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_argos_soft'
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'ARGOS Fuji Set - DS4')
             elif inf_set == 'ARGOS-DS34':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_argos_soft'
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
                 OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'ARGOS Fuji Set - DS34')
             elif inf_set == 'ARGOS-DS5':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_argos_soft'
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
                 OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'ARGOS Fuji Set - DS5')
-            elif inf_set == 'Validation-XXL':
-                CACHE_PATH = 'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_validation_xxl_plausible'
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set XXL')
             elif inf_set == 'IQ-Triplet':
-                CACHE_PATH = (
-                    'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_test_cad2.json'
-                )
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
                 OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'IQ-Triplet Set')
             elif inf_set == 'IQ-Triplet-HQ':
-                CACHE_PATH = (
-                    'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_test_cad2.json'
-                )
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
                 OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'IQ-Triplet Set - HQ')
             elif inf_set == 'IQ-Triplet-MQ':
-                CACHE_PATH = (
-                    'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_test_cad2.json'
-                )
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
                 OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'IQ-Triplet Set - MQ')
             elif inf_set == 'IQ-Triplet-LQ':
-                CACHE_PATH = (
-                    'D:/Python Scripts - Open Research/WLE-CADe-NBI-CADx/cache folders/cache_wle_test_cad2.json'
-                )
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
                 OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'IQ-Triplet Set - LQ')
 
-            # Sets for CADe2.0 experiments
-            elif inf_set == 'Val-CAD2':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2_new_am.json')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set')
-            elif inf_set == 'Val-CAD2-Org':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2_new_am.json')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set - Original')
-            elif inf_set == 'Val-CAD2-Enh':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2_new_am.json')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set - Enhanced')
-            elif inf_set == 'Val-CAD2-Frames-HQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2_new_am.json')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set - Frames HQ')
-            elif inf_set == 'Val-CAD2-Frames-MQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2_new_am.json')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set - Frames MQ')
-            elif inf_set == 'Val-CAD2-Frames-LQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2_new_am.json')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set - Frames LQ')
-
-            # Sets for Cosmo experiments
-            elif inf_set == 'Val-CAD-A3-V':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2.json')
-                CACHE_PATH_ARG = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_argos_soft')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set')
-            elif inf_set == 'Val-CAD-AC-V':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2.json')
-                CACHE_PATH_ARG = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_argos_soft')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set')
-
-            # Set for UEGW abstract
-            elif inf_set == 'Val-UEGW':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_dev_cad2_uegw.json')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set')
-
-            # Sets for journal validation
+            # Sets for validation
             elif inf_set == 'Val-HQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_train-val-test_plausible')
-                CACHE_PATH_EXTRA = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_train-val_frames')
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
+                CACHE_PATH_EXTRA = os.path.join(os.getcwd(), 'cache', '')
                 OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Val - HQ')
             elif inf_set == 'Val-MQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_train-val_frames_MQ')
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
                 OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Val - MQ')
             elif inf_set == 'Val-LQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_train-val_frames_LQ')
+                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
                 OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Val - LQ')
-            elif inf_set == 'Val-Img':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache folders', 'cache_wle_train-val-test_plausible')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Val - Img')
             else:
                 raise ValueError
 
@@ -1429,6 +1039,3 @@ if __name__ == '__main__':
 
         # Close text file
         f_txt.close()
-
-        # # Run fps check
-        # fps_check(opt=opt, use_cuda=True)
