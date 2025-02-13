@@ -7,6 +7,9 @@ from skimage.measure import label
 from scipy import ndimage
 from PIL import Image
 from numba import jit
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+import argparse
 
 """SPECIFY EXTENSIONS AND DATA ROOTS"""
 EXT_VID = ['.mp4', '.m4v', '.avi']
@@ -21,6 +24,7 @@ EXT_IMG = ['.jpg', '.png', '.tiff', '.tif', '.bmp', '.jpeg']
 # Define function for minimum pooling the images
 @jit(nopython=True)
 def min_pooling(img, g=8):
+    print(img.shape)
     # Copy Image
     out = img.copy()
 
@@ -79,7 +83,7 @@ def find_roi(img):
 
     # Scale pixel values
     img_scaled = ((norm_org - np.min(img_gauss)) / (np.max(img_gauss) - np.min(img_gauss))) * 255
-
+    print('Image scaled shape: ', img_scaled.shape)
     # Use minimum pooling
     img_norm = min_pooling(img_scaled, g=8)
 
@@ -101,7 +105,7 @@ def find_roi(img):
 def cache_wle(root_dir, mask_dir, subtlety_dir, quality_dir, storing_folder):
     # Create directory
     print('Generating cache...')
-    os.makedirs(os.path.join(os.getcwd(), '..', 'cache folders', storing_folder))
+    os.makedirs(storing_folder, exist_ok=True)
 
     # Create empty dictionary for  image files
     img_files = list()
@@ -124,47 +128,63 @@ def cache_wle(root_dir, mask_dir, subtlety_dir, quality_dir, storing_folder):
 
     # Loop over roots (folders in OTMASKDIR), dirs (folders in roots), files (files in dirs)
     for root, dirs, files in os.walk(mask_dir):
-        if 1:  # 'Lowerlikelihood' in root:
-            # Loop over filenames in files
-            for file in files:
-                # Extract filename before .ext
-                maskcase = os.path.splitext(file)[0]
+        # if 'Lowerlikelihood' in root:
+        # Loop over filenames in files
+        for file in files:
+            # Extract filename before .ext
+            # print('Lowerlikelihood File: ', file)
+            maskcase = os.path.splitext(file)[0]
+            # print('Maskcase: ', maskcase)
 
-                # Append filename to mask dictionary if already existing key; otherwise create key and append to list
-                if maskcase in maskdict.keys():
-                    maskdict[maskcase].append(os.path.join(root, file))
-                else:
-                    maskdict[maskcase] = list()
-                    maskdict[maskcase].append(os.path.join(root, file))
-
+            # Append filename to mask dictionary if already existing key; otherwise create key and append to list
+            if maskcase in maskdict.keys():
+                maskdict[maskcase].append(os.path.join(root, file))
+            else:
+                maskdict[maskcase] = list()
+                maskdict[maskcase].append(os.path.join(root, file))
+    print('Maskdict: ', maskdict)
     # Read Subtlety database as excel file; Create empty dictionary for subtlety
     subtlety_df = pd.read_excel(subtlety_dir)
     subtlety_dict = dict()
 
     # Iterate over rows in excel file; initialize img name key in subtlety dict, set value based on subtlety
     for idx, frame in subtlety_df.iterrows():
+        if 'Imagename' not in frame.keys():
+            print('Error: Imagename not in keys: ', frame.keys())
+            continue
+        # print('Frame name: ', frame['Imagename'])
         subtlety_dict[os.path.splitext(frame['Imagename'])[0]] = frame['Subtlety (0=easy, 1=medium, 2=hard)']
 
     # Read Quality database as excel file; Create empty dictionary for quality
-    quality_df = pd.read_excel(quality_dir)
-    quality_dict = dict()
+    # quality_df = pd.read_excel(quality_dir)
+    # quality_dict = dict()
 
-    # Iterate over rows in excel file; initialize img name key in quality dict, set value based on quality
-    # It can happen that multiple same key occurs multiple times in the dict
-    for idx, frame in quality_df.iterrows():
-        if os.path.splitext(frame['Imagename'])[0] not in quality_dict.keys():
-            quality_dict[os.path.splitext(frame['Imagename'])[0]] = list()
-            quality_dict[os.path.splitext(frame['Imagename'])[0]].append(frame['Quality'])
-        elif os.path.splitext(frame['Imagename'])[0] in quality_dict.keys():
-            quality_dict[os.path.splitext(frame['Imagename'])[0]].append(frame['Quality'])
+    # # Iterate over rows in excel file; initialize img name key in quality dict, set value based on quality
+    # # It can happen that multiple same key occurs multiple times in the dict
+    # for idx, frame in quality_df.iterrows():
+    #     if 'Imagename' not in frame.keys():
+    #         print('Error: Imagename not in keys: ', frame.keys())
+    #         continue
+    #     if os.path.splitext(frame['Imagename'])[0] not in quality_dict.keys():
+    #         quality_dict[os.path.splitext(frame['Imagename'])[0]] = list()
+    #         quality_dict[os.path.splitext(frame['Imagename'])[0]].append(frame['Quality'])
+    #     elif os.path.splitext(frame['Imagename'])[0] in quality_dict.keys():
+    #         quality_dict[os.path.splitext(frame['Imagename'])[0]].append(frame['Quality'])
 
     """""" """""" """""" """""" """""" """""" ""
     """CREATE JSON FILE FOR EVERY IMAGE """
     """""" """""" """""" """""" """""" """""" ""
-
+    failed_files = []
     # Loop over list of img_files, which was created by appending the roots of all images in root_dir
     for img in img_files:
         print('Reading image: ', img)
+
+        try:
+            frame = np.array(Image.open(img))
+        except Exception as e:
+            print('Error: ', e)
+            failed_files.append(img)
+            continue
 
         # Extract imagename from the path to image (img)
         imgname = os.path.split(img)[1]
@@ -192,14 +212,14 @@ def cache_wle(root_dir, mask_dir, subtlety_dir, quality_dir, storing_folder):
         )
         if 'subtle' in img:
             data['subtlety'] = 2
-        data['quality'] = (
-            quality_dict[os.path.splitext(os.path.split(img)[1])[0]]
-            if os.path.splitext(os.path.split(img)[1])[0] in quality_dict.keys()
-            else []
-        )
+        # data['quality'] = (
+        #     quality_dict[os.path.splitext(os.path.split(img)[1])[0]]
+        #     if os.path.splitext(os.path.split(img)[1])[0] in quality_dict.keys()
+        #     else []
+        # )
 
         # Open the image as numpy array; extract height and width and place in data dictionary
-        frame = np.array(Image.open(img))
+
         data['height'] = frame.shape[0]
         data['width'] = frame.shape[1]
         print('Frame shape: ', frame.shape)
@@ -210,6 +230,8 @@ def cache_wle(root_dir, mask_dir, subtlety_dir, quality_dir, storing_folder):
 
         # Create new key in data dictionary for masks and initialize as list; instantiate with maskdict list
         data['masks'] = list()
+        # print("checking maskdict for: ", os.path.splitext(os.path.split(img)[1])[0])
+        # print( os.path.splitext(os.path.split(img)[1])[0] in maskdict.keys())
         if os.path.splitext(os.path.split(img)[1])[0] in maskdict.keys():
             data['masks'] = maskdict[os.path.splitext(os.path.split(img)[1])[0]]
         print('Number of masks: {}'.format(len(data['masks'])))
@@ -266,28 +288,47 @@ def cache_wle(root_dir, mask_dir, subtlety_dir, quality_dir, storing_folder):
                 storing_folder,
                 os.path.splitext(imgname)[0] + '_3.json',
             )
+        elif not os.path.exists(
+            os.path.join(
+                os.getcwd(),
+                '..',
+                'cache folders',
+                storing_folder,
+                os.path.splitext(imgname)[0] + '_4.json',
+            )
+        ):
+            jsonfile = os.path.join(
+                os.getcwd(),
+                '..',
+                'cache folders',
+                storing_folder,
+                os.path.splitext(imgname)[0] + '_4.json',
+            )
         else:
-            raise ValueError
+            print('All files already exist')
+            continue
+            # raise ValueError('All files already exist')
 
         # For every img in img_files write dictionary data into corresponding json file
         with open(jsonfile, 'w') as outfile:
             json.dump(data, outfile, indent=4)
 
-
+    print('Failed files: ', failed_files)
 """""" """""" """""" """""" ""
 """EXECUTION OF FUNCTIONS"""
 """""" """""" """""" """""" ""
 if __name__ == '__main__':
+    # create parser object
+    parser = argparse.ArgumentParser(description='Generate cache for WLE images')
+    parser.add_argument('--root_dir', type=str, help='Root directory for WLE images')
+    parser.add_argument('--mask_dir', type=str, help='Root directory for masks')
+    parser.add_argument('--subtlety_dir', type=str, help='Root directory for subtlety')
+    parser.add_argument('--quality_dir', type=str, help='Root directory for quality')
+    
+    
     """DEFINE PATHS AND STORING FOLDERS FOR REGULAR TESTING"""
-    # Define paths to the folders for WLE (Images, Masks, Subtlety, Quality)
-    wle_dir = ''
-    wle_mask_dir = ''
-    wle_subtle_dir = ''
-    wle_quality_dir = ''
-
-    # Define storing folders for NBI and WL
-    wle_store = 'cache'
-
+    parser.add_argument('--cache_dir', type=str, default='cache', help='Folder to store cache files')
+    args = parser.parse_args()
     # Execute functions
-    cache_wle(root_dir=wle_dir, mask_dir=wle_mask_dir, subtlety_dir=wle_subtle_dir,
-              quality_dir=wle_quality_dir, storing_folder=wle_store)
+    cache_wle(root_dir=args.root_dir, mask_dir=args.mask_dir, subtlety_dir=args.subtlety_dir,
+              quality_dir=args.quality_dir, storing_folder=args.cache_dir)
