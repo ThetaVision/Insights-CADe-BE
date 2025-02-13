@@ -4,7 +4,7 @@
 # STEP 1: Export folders for further use
 export HOME_FOLDER=/data/
 export BASE_FOLDER=/data/Insights-CADe-BE
-export EXP_FOLDER=/data/experiments
+export EXP_FOLDER=/data/Insights-CADe-BE/experiments
 
 # STEP 2: Navigate to the location of the code
 cd $BASE_FOLDER 
@@ -14,9 +14,9 @@ pwd
 
 # STEP 3: Setup WANDB logging
 export WANDB_API_KEY=abe0a54fb25d072906a33bbf9d57a0bd0360ead6
-export WANDB_DIR=$BASE_FOLDER/wandb
-export WANDB_CONFIG_DIR=$BASE_FOLDER/wandb
-export WANDB_CACHE_DIR=$BASE_FOLDER/wandb
+export WANDB_DIR=$EXP_FOLDER/wandb
+export WANDB_CONFIG_DIR=$EXP_FOLDER/wandb
+export WANDB_CACHE_DIR=$EXP_FOLDER/wandb
 export WANDB_START_METHOD="thread"
 wandb login
 
@@ -32,8 +32,8 @@ do
         export OUTPUT_FOLDER=${MODELS[$i]}_${SEEDS[$j]}
         python3 train.py --experimentname "${OUTPUT_FOLDER}" \
                             --seed "${SEEDS[$j]}" \
-                            --output_folder "${OUTPUT_FOLDER}" \
-                            --backbone "${EXP_FOLDER}/${MODELS[$i]}" \
+                            --output_folder "${EXP_FOLDER}/${OUTPUT_FOLDER}" \
+                            --backbone "${MODELS[$i]}" \
                             --weights "${BASE_FOLDER}/pretrained/checkpoint0100_teacher.pth" \
                             --batchsize 8 \
                             --cache_path "/data/barretts_cache"
