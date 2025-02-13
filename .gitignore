@@ -1,1 +1,5 @@
 .idea
+pretrained/*
+wandb/*
+
+*.pyc
