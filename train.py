@@ -511,7 +511,7 @@ def run(opt):
 
     # Construct PyTorch Lightning Trainer
     pl_model = WLEModel(opt=opt, finetune=False)
-    device = torch.device('gpu' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('gpu' if torch.cuda.is_available() else 'cpu')
 
     trainer = pl.Trainer(
         devices=1,
