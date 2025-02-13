@@ -294,7 +294,7 @@ class WLEModel(pl.LightningModule):
 
 
         # Define learning rate scheduler
-        scheduler = construct_scheduler(schedule=opt.scheduler, optimizer=optimizer, lr=learning_rate, epochs=opt.num_epochs, steps_per_epoch=self.steps_per_epoch)
+        scheduler = construct_scheduler(schedule=opt.scheduler, optimizer=optimizer, lr=learning_rate, epochs=opt.num_epochs, steps_per_epoch=self.train)
 
         if scheduler is not None:
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
@@ -516,7 +516,7 @@ def run(opt):
     )
 
     """TRAINING PHASE"""
-    steps_per_epoch = len(dm_train.train_set) // opt.batchsize
+    steps_per_epoch = len(dm_train.train_dataloader())
     # Construct PyTorch Lightning Trainer
     pl_model = WLEModel(opt=opt, finetune=False, steps_per_epoch=steps_per_epoch)
     # device = torch.device('gpu' if torch.cuda.is_available() else 'cpu')
