@@ -65,14 +65,14 @@ def construct_scheduler(schedule, optimizer, lr, metric="val_loss_combine", epoc
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer=optimizer,
             max_lr=lr,
-            steps_per_epoch=steps_per_epoch,
+            steps_per_epoch=1,
             epochs=epochs,
             pct_start=0.1,
             anneal_strategy='cos',
             final_div_factor=1e4,
         )
 
-        return {"scheduler": scheduler, "interval": "step"}
+        return {"scheduler": scheduler, "interval": "epoch"}
 
     else:
         return None
