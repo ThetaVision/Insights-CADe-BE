@@ -183,6 +183,9 @@ class WLEDataModuleTrain(pl.LightningDataModule):
             transform=train_transforms,
             random_noise=True,
         )
+
+        self.steps_per_epoch = len(self.train_set) // opt.batchsize
+
         self.val_set_test = DATASET_TRAIN_TEST(
             opt=self.opt,
             inclusion=val_inclusion,
@@ -229,7 +232,7 @@ class WLEDataModuleTrain(pl.LightningDataModule):
 
 
 class WLEModel(pl.LightningModule):
-    def __init__(self, opt, finetune):
+    def __init__(self, opt, finetune, steps_per_epoch=None):
         super(WLEModel, self).__init__()
 
         # Fix seed for reproducibility
@@ -243,6 +246,9 @@ class WLEModel(pl.LightningModule):
 
         # Define sigmoid activation
         self.sigmoid = nn.Sigmoid()
+
+        # Define steps per epoch
+        self.steps_per_epoch = steps_per_epoch
 
         # Define loss functions for classification and segmentation
         self.cls_criterion, self.seg_criterion = construct_loss_function(opt=opt)
@@ -285,10 +291,9 @@ class WLEModel(pl.LightningModule):
         # Define optimizer
         optimizer = construct_optimizer(optim=opt.optimizer, parameters=self.parameters(), lr=learning_rate)
 
-        steps_per_epoch = len(self.train_dataloader())
 
         # Define learning rate scheduler
-        scheduler = construct_scheduler(schedule=opt.scheduler, optimizer=optimizer, lr=learning_rate, epochs=opt.num_epochs, steps_per_epoch=steps_per_epoch)
+        scheduler = construct_scheduler(schedule=opt.scheduler, optimizer=optimizer, lr=learning_rate, epochs=opt.num_epochs, steps_per_epoch=self.steps_per_epoch)
 
         if scheduler is not None:
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
@@ -512,7 +517,7 @@ def run(opt):
     """TRAINING PHASE"""
 
     # Construct PyTorch Lightning Trainer
-    pl_model = WLEModel(opt=opt, finetune=False)
+    pl_model = WLEModel(opt=opt, finetune=False, steps_per_epoch=dm_train.steps_per_epoch)
     # device = torch.device('gpu' if torch.cuda.is_available() else 'cpu')
 
     trainer = pl.Trainer(
