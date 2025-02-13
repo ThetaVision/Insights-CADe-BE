@@ -13,7 +13,7 @@ cd $BASE_FOLDER
 pwd
 
 # STEP 3: Setup WANDB logging
-export WANDB_API_KEY=abe0a54fb25d072906a33bbf9d57a0bd0360ead6
+export WANDB_API_KEY=...
 export WANDB_DIR=$EXP_FOLDER/wandb
 export WANDB_CONFIG_DIR=$EXP_FOLDER/wandb
 export WANDB_CACHE_DIR=$EXP_FOLDER/wandb
