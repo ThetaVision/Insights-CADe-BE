@@ -138,7 +138,7 @@ class WLEDataModuleTrain(pl.LightningDataModule):
         self.val_set_train = None
         self.val_set_test = None
         self.opt = opt
-        self.steps_per_epoch = None
+
 
     def setup(self, stage: Optional[str] = None):
         # Find data that satisfies the inclusion criteria
@@ -185,7 +185,7 @@ class WLEDataModuleTrain(pl.LightningDataModule):
             random_noise=True,
         )
 
-        self.steps_per_epoch = len(self.train_set) // opt.batchsize
+        
 
         self.val_set_test = DATASET_TRAIN_TEST(
             opt=self.opt,
@@ -516,9 +516,9 @@ def run(opt):
     )
 
     """TRAINING PHASE"""
-
+    steps_per_epoch = len(dm_train.train_set) // opt.batchsize
     # Construct PyTorch Lightning Trainer
-    pl_model = WLEModel(opt=opt, finetune=False, steps_per_epoch=dm_train.steps_per_epoch)
+    pl_model = WLEModel(opt=opt, finetune=False, steps_per_epoch=steps_per_epoch)
     # device = torch.device('gpu' if torch.cuda.is_available() else 'cpu')
 
     trainer = pl.Trainer(
