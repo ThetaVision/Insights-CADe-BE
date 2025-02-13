@@ -497,7 +497,8 @@ def extract_masks(masklist):
 
         # If more than 2 experts are available, raise an error
         else:
-            raise ValueError('More than 2 experts...')
+            continue
+            # raise ValueError('More than 2 experts...')
 
     # Replace LL with LL U HL if they both exist to enforce the protocol
     if lower0 and higher0:
