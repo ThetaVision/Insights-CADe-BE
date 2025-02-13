@@ -90,7 +90,7 @@ def read_inclusion(path, criteria):
                     'label': np.array([1], dtype=np.float32),
                     'roi': v_cache['roi'],
                     'subtlety': v_cache['subtlety'],
-                    'quality': v_cache['quality'],
+                     # 'quality': v_cache['quality'],
                 }
                 img_list.append(info)
             elif v_cache['class'] == 'ndbe':
@@ -100,7 +100,7 @@ def read_inclusion(path, criteria):
                     'label': np.array([0], dtype=np.float32),
                     'roi': v_cache['roi'],
                     'subtlety': v_cache['subtlety'],
-                    'quality': v_cache['quality'],
+                    # 'quality': v_cache['quality'],
                 }
                 img_list.append(info)
             else:

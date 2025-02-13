@@ -4,7 +4,7 @@ import argparse
 import time
 import json
 import pandas as pd
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import torch
 from torchinfo import summary
@@ -167,7 +167,7 @@ def run(opt, f_txt, exp_name, inf_set):
             # Create original image with heatmap overlay
             composite = image
             draw = ImageDraw.Draw(composite)
-            font = ImageFont.truetype('C:/Users/s157128/Documents/Roboto/Roboto-Regular.ttf', size=48)
+            font = ImageFont.truetype('arial.ttf', size=48)
             draw.text(
                 (0, 0),
                 "Cls: {:.3f}".format(cls_pred.item()),

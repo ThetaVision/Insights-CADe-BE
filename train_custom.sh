@@ -46,24 +46,12 @@ do
             srun apptainer exec --nv $BASE_FOLDER/wle-cade-nbi-cadx_V2.sif \
             python3 train.py --experimentname "${OUTPUT_FOLDER}" \
                              --seed "${SEEDS[$j]}" \
-                             --output_folder ... \
+                             --output_folder "${OUTPUT_FOLDER}" \
                              --backbone "${MODELS[$i]}" \
                              --weights ... \
-                             --optimizer ... \
-                             --scheduler ... \
-                             --cls_criterion ... \
-                             --cls_criterion_weight ... \
-                             --seg_criterion ... \
-                             --label_smoothing ... \
-                             --seg_metric ... \
-                             --batchsize ... \
-                             --augmentations ... \
-                             --mask_content ... \
-                             --training_content ... \
-                             --frame_quality ... \
-                             --frame_perc ... \
-                             --num_epochs ... \
-                             --train_lr ...
+                             --batchsize 8 \
+                             --cache_path ..
+
 
             cp -r $BASE_FOLDER/$EXP_FOLDER/"${OUTPUT_FOLDER}" "${HOME_FOLDER}"/$EXP_FOLDER
             echo "============Finished============"

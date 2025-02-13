@@ -22,7 +22,7 @@ from data.dataset import (
 )
 
 from data.dataset import augmentations
-from data.dataset import domain_augmentations as d_augmentations
+from data.dataset import domain_augmentations as domain_augmentations
 from models.model import Model
 
 from utils.loss import construct_loss_function
@@ -41,6 +41,14 @@ def get_data_inclusion_criteria():
     criteria["train"] = {
         "modality": ["wle"],
         "dataset": ["training"],
+        "protocol": ["Retrospectief", "Prospectief"],
+        "min_height": None,
+        "min_width": None,
+    }
+
+    criteria["validation"] = {
+        "modality": ["wle"],
+        "dataset": ["validation"],
         "protocol": ["Retrospectief", "Prospectief"],
         "min_height": None,
         "min_width": None,
@@ -137,67 +145,28 @@ class WLEDataModuleTrain(pl.LightningDataModule):
             path=self.data_dir,
             criteria=self.criteria["train"],
         )
-        if self.opt.training_content == 'Both':
-            if self.opt.frame_quality == 'HQ':
-                train_inclusion_frames = read_inclusion(path=CACHE_PATH_FRAMES, criteria=self.criteria["train"])
-                train_inclusion_frames = random.sample(
-                    train_inclusion_frames, k=int(len(train_inclusion_frames) * self.opt.frame_perc)
-                )
-                train_inclusion = train_inclusion + train_inclusion_frames
-            elif self.opt.frame_quality == 'MQ':
-                train_inclusion_frames = read_inclusion(path=CACHE_PATH_FRAMES_MQ, criteria=self.criteria["train"])
-                train_inclusion_frames = random.sample(
-                    train_inclusion_frames, k=int(len(train_inclusion_frames) * self.opt.frame_perc)
-                )
-                train_inclusion = train_inclusion + train_inclusion_frames
-            elif self.opt.frame_quality == 'LQ':
-                train_inclusion_frames = read_inclusion(path=CACHE_PATH_FRAMES_LQ, criteria=self.criteria["train"])
-                train_inclusion_frames = random.sample(
-                    train_inclusion_frames, k=int(len(train_inclusion_frames) * self.opt.frame_perc)
-                )
-                train_inclusion = train_inclusion + train_inclusion_frames
-            elif self.opt.frame_quality == 'HQ-MQ':
-                train_inclusion_frames_hq = read_inclusion(path=CACHE_PATH_FRAMES, criteria=self.criteria["train"])
-                train_inclusion_frames_hq = random.sample(
-                    train_inclusion_frames_hq, k=int(len(train_inclusion_frames_hq) * self.opt.frame_perc)
-                )
-                train_inclusion_frames_mq = read_inclusion(
-                    path=CACHE_PATH_FRAMES_MQ, criteria=self.criteria["train"]
-                )
-                train_inclusion_frames_mq = random.sample(
-                    train_inclusion_frames_mq, k=int(len(train_inclusion_frames_mq) * self.opt.frame_perc)
-                )
-                train_inclusion = train_inclusion + train_inclusion_frames_hq + train_inclusion_frames_mq
-            elif self.opt.frame_quality == 'HQ-LQ':
-                train_inclusion_frames_hq = read_inclusion(path=CACHE_PATH_FRAMES, criteria=self.criteria["train"])
-                train_inclusion_frames_hq = random.sample(
-                    train_inclusion_frames_hq, k=int(len(train_inclusion_frames_hq) * self.opt.frame_perc)
-                )
-                train_inclusion_frames_lq = read_inclusion(
-                    path=CACHE_PATH_FRAMES_LQ, criteria=self.criteria["train"]
-                )
-                train_inclusion_frames_lq = random.sample(
-                    train_inclusion_frames_lq, k=int(len(train_inclusion_frames_lq) * self.opt.frame_perc)
-                )
-                train_inclusion = train_inclusion + train_inclusion_frames_hq + train_inclusion_frames_lq
-            elif self.opt.frame_quality == 'MQ-LQ':
-                train_inclusion_frames_mq = read_inclusion(
-                    path=CACHE_PATH_FRAMES_MQ, criteria=self.criteria["train"]
-                )
-                train_inclusion_frames_mq = random.sample(
-                    train_inclusion_frames_mq, k=int(len(train_inclusion_frames_mq) * self.opt.frame_perc)
-                )
-                train_inclusion_frames_lq = read_inclusion(
-                    path=CACHE_PATH_FRAMES_LQ, criteria=self.criteria["train"]
-                )
-                train_inclusion_frames_lq = random.sample(
-                    train_inclusion_frames_lq, k=int(len(train_inclusion_frames_lq) * self.opt.frame_perc)
-                )
-                train_inclusion = train_inclusion + train_inclusion_frames_mq + train_inclusion_frames_lq
+        
 
-        val_inclusion = read_inclusion(path=self.data_dir, criteria=self.criteria["dev"])
-        val_inclusion_frames = read_inclusion(path=CACHE_PATH_FRAMES, criteria=self.criteria["dev"])
-        val_inclusion = val_inclusion + val_inclusion_frames
+
+        train_inclusion = read_inclusion(path=opt.cache_path, criteria=self.criteria["train"])
+        train_inclusion = random.sample(
+            train_inclusion, k=int(len(train_inclusion) * opt.frame_perc)
+        )
+
+        val_inclusion = read_inclusion(path=opt.cache_path, criteria=self.criteria["validation"])
+        # test_inclusion = read_inclusion(path=opt.cache_path, criteria=criteria["test"])
+
+
+        if opt.augmentations == "domain":
+            data_transforms = domain_augmentations(opt)
+        else:
+            data_transforms = augmentations(opt)
+
+        train_transforms = data_transforms["train"]
+        val_transforms = data_transforms["val"]
+        # test_transforms = data_transforms["val"]
+
+        test_set = None
 
         # Construct weights for the samples
         train_weights = sample_weights(train_inclusion)
@@ -211,13 +180,13 @@ class WLEDataModuleTrain(pl.LightningDataModule):
         self.train_set = DATASET_TRAIN_TEST(
             opt=self.opt,
             inclusion=train_inclusion,
-            transform=self.transforms["train"],
+            transform=train_transforms,
             random_noise=True,
         )
         self.val_set_test = DATASET_TRAIN_TEST(
             opt=self.opt,
             inclusion=val_inclusion,
-            transform=self.transforms["test"],
+            transform=val_transforms,
             random_noise=False,
         )
         self.val_set_train = DATASET_VAL(opt=self.opt, inclusion=val_inclusion, transform=self.transforms["val"])
@@ -244,6 +213,8 @@ class WLEDataModuleTrain(pl.LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(self.val_set_test, batch_size=opt.batchsize, num_workers=4)
+
+        
 
 
 """""" """""" """""" """""" """""" """""" """""" """""" ""
@@ -499,12 +470,12 @@ def run(opt):
     criteria = get_data_inclusion_criteria()
 
     if opt.augmentations == "domain":
-        data_transforms = d_augmentations(opt)
+        data_transforms = domain_augmentations(opt)
     else:
         data_transforms = augmentations(opt)
 
     dm_train = WLEDataModuleTrain(
-        data_dir=CACHE_PATH,
+        data_dir=opt.cache_path,
         criteria=criteria,
         transforms=data_transforms,
         opt=opt,
@@ -540,9 +511,11 @@ def run(opt):
 
     # Construct PyTorch Lightning Trainer
     pl_model = WLEModel(opt=opt, finetune=False)
+    device = torch.device('gpu' if torch.cuda.is_available() else 'cpu')
+
     trainer = pl.Trainer(
         devices=1,
-        accelerator="gpu",
+        accelerator='auto',
         max_epochs=opt.num_epochs,
         logger=wandb_logger_train,
         callbacks=[checkpoint_callback_train, lr_monitor_train, early_stopping],
@@ -579,13 +552,13 @@ if __name__ == "__main__":
     parser.add_argument("--output_folder", type=str, default=None)
 
     # DEFINE MODEL
-    parser.add_argument("--backbone", type=str, default="MetaFormer-CAS18-FCN")
+    parser.add_argument("--backbone", type=str, default="MetaFormer-CAS18-FPN")
     parser.add_argument("--seg_branch", type=str, default=None)
     parser.add_argument("--weights", type=str, default="ImageNet", help="ImageNet, GastroNet, GastroNet-DSA")
 
     # DEFINE OPTIMIZER, CRITERION, SCHEDULER
     parser.add_argument("--optimizer", type=str, default="Adam", help="Adam, SGD")
-    parser.add_argument("--scheduler", type=str, default="Plateau", help="Plateau, Step, Cosine")
+    parser.add_argument("--scheduler", type=str, default="OneCycle", help="Plateau, Step, Cosine, OneCycle")
     parser.add_argument("--cls_criterion", type=str, default="BCE", help="BCE, Focal")
     parser.add_argument("--cls_criterion_weight", type=float, default=1.0)
     parser.add_argument(
@@ -607,29 +580,32 @@ if __name__ == "__main__":
     parser.add_argument("--imagesize", type=int, default=256)
     parser.add_argument("--batchsize", type=int, default=32)
     parser.add_argument("--num_classes", type=int, default=1)
-    parser.add_argument("--augmentations", type=str, default="default", help="default, domain")
+    parser.add_argument("--augmentations", type=str, default="domain", help="default, domain")
 
     # MASK PARAMS
     parser.add_argument(
-        '--mask_content', type=str, default='Plausible', help='Soft, Plausible, Sweet, Hard, Random, Average, Multiple'
+        '--mask_content', type=str, default='Random', help='Soft, Plausible, Sweet, Hard, Random, Average, Multiple'
     )  # 'Consensus' == 'Plausible'
 
     # FRAME PARAMS
     parser.add_argument("--training_content", type=str, default="Images", help="Both, Images")
-    parser.add_argument('--frame_quality', type=str, default='HQ', help='HQ, MQ, LQ, HQ-MQ, HQ-LQ, MQ-LQ')
+    # parser.add_argument('--frame_quality', type=str, default='HQ', help='HQ, MQ, LQ, HQ-MQ, HQ-LQ, MQ-LQ')
     parser.add_argument('--frame_perc', type=float, default=1.0)
 
     # TRAINING PARAMETERS
     parser.add_argument("--num_epochs", type=int, default=150)
     parser.add_argument("--train_lr", type=float, default=1e-6)
 
-    opt = parser.parse_args()
+    
 
-    """SPECIFY CACHE PATH"""
+    # SPECIFY CACHE PATH
     CACHE_PATH = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val-test_all_masks_fixed")
-    CACHE_PATH_FRAMES = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames")
-    CACHE_PATH_FRAMES_MQ = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames_MQ")
-    CACHE_PATH_FRAMES_LQ = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames_LQ")
+    parser.add_argument("--cache_path", type=str, default=CACHE_PATH)
+    # CACHE_PATH_FRAMES = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames")
+    # CACHE_PATH_FRAMES_MQ = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames_MQ")
+    # CACHE_PATH_FRAMES_LQ = os.path.join(os.getcwd(), "cache folders", "cache_wle_train-val_frames_LQ")
+
+    opt = parser.parse_args()
 
     """SPECIFY PATH FOR SAVING"""
     SAVE_DIR = os.path.join(os.getcwd(), opt.output_folder)
