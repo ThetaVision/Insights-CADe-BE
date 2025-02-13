@@ -285,8 +285,10 @@ class WLEModel(pl.LightningModule):
         # Define optimizer
         optimizer = construct_optimizer(optim=opt.optimizer, parameters=self.parameters(), lr=learning_rate)
 
+        steps_per_epoch = len(self.train_dataloader())
+
         # Define learning rate scheduler
-        scheduler = construct_scheduler(schedule=opt.scheduler, optimizer=optimizer, lr=learning_rate)
+        scheduler = construct_scheduler(schedule=opt.scheduler, optimizer=optimizer, lr=learning_rate, epochs=opt.num_epochs, steps_per_epoch=steps_per_epoch)
 
         if scheduler is not None:
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
