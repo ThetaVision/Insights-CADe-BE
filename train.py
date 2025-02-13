@@ -138,6 +138,7 @@ class WLEDataModuleTrain(pl.LightningDataModule):
         self.val_set_train = None
         self.val_set_test = None
         self.opt = opt
+        self.steps_per_epoch = None
 
     def setup(self, stage: Optional[str] = None):
         # Find data that satisfies the inclusion criteria
