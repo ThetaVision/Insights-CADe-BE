@@ -560,7 +560,7 @@ if __name__ == "__main__":
     # DEFINE MODEL
     parser.add_argument("--backbone", type=str, default="MetaFormer-CAS18-FPN")
     parser.add_argument("--seg_branch", type=str, default=None)
-    parser.add_argument("--weights", type=str, default="ImageNet", help="ImageNet, GastroNet, GastroNet-DSA")
+    parser.add_argument("--weights", type=str, default="./pretrained/checkpoint0100_teacher.pth", help="ImageNet, GastroNet, GastroNet-DSA")
 
     # DEFINE OPTIMIZER, CRITERION, SCHEDULER
     parser.add_argument("--optimizer", type=str, default="Adam", help="Adam, SGD")

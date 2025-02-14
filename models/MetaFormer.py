@@ -1921,16 +1921,16 @@ def caformer_s18(opt, pretrained=False, **kwargs):
         )
 
         if pretrained:
-            if opt.weights == 'GastroNet':
-                # GastroNet pretrained weights
-                print('Loading DINO Default GastroNet Weights in CAFormer with ReLU...')
-                state_dict = torch.load(os.path.join(os.getcwd(), 'pretrained', 'checkpoint0100_teacher.pth'))
-                model.load_state_dict(state_dict, False)
-
-            elif opt.weights == 'GastroNet-DSA':
+            if 'GastroNet-DSA' in opt.weights:
                 # GastroNet pretrained weights
                 print('Loading DINO DSA GastroNet Weights in CAFormer with ReLU...')
-                state_dict = torch.load(os.path.join(os.getcwd(), 'pretrained', 'checkpoint0100_teacher_custom.pth'))
+                state_dict = torch.load(opt.weights)
+                model.load_state_dict(state_dict, False)
+
+            elif 'GastroNet' in opt.weights:
+                # GastroNet pretrained weights
+                print('Loading DINO Default GastroNet Weights in CAFormer with ReLU...')
+                state_dict = torch.load(opt.weights)
                 model.load_state_dict(state_dict, False)
 
     return model
