@@ -855,6 +855,7 @@ if __name__ == '__main__':
 
         # Create text file for writing results
         f = open(os.path.join(SAVE_DIR, exp_name, opt.textfile), 'x')
+        f_txt = open(os.path.join(SAVE_DIR, exp_name, opt.textfile), 'a')
         # Loop over all sets
         for inf_set in opt.evaluate_sets:
             if inf_set == 'Test':
