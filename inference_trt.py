@@ -10,7 +10,7 @@ import numpy as np
 import torch
 import cv2
 
-
+import tensorrt as trt
 from torch2trt import torch2trt, TRTModule
 
 from sklearn.metrics import roc_curve, roc_auc_score, precision_recall_curve

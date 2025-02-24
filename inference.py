@@ -50,68 +50,6 @@ def get_data_inclusion_criteria():
         'min_width': None,
     }
 
-    criteria['all-comers'] = {
-        'dataset': ['all-comers'],
-        'min_height': None,
-        'min_width': None,
-    }
-
-    criteria['test-corrupt'] = {
-        'dataset': ['test-corrupt'],
-        'min_height': None,
-        'min_width': None,
-    }
-
-    criteria['born'] = {
-        'modality': ['wle'],
-        'min_height': None,
-        'min_width': None,
-        'mask_only': True,
-    }
-
-    criteria['argos-ds34'] = {
-        'modality': ['wle'],
-        'dataset': ["Dataset 3", "Dataset 4"],
-        'min_height': None,
-        'min_width': None,
-        'mask_only': True,
-    }
-
-    criteria['argos-ds5'] = {
-        'modality': ['wle'],
-        'dataset': ["Dataset 5"],
-        'min_height': None,
-        'min_width': None,
-        'mask_only': True,
-    }
-
-    criteria["iq-triplet"] = {
-        "dataset": ["validation-robustness"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["iq-triplet-high"] = {
-        "dataset": ["validation-robustness"],
-        "quality": ["high"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["iq-triplet-medium"] = {
-        "dataset": ["validation-robustness"],
-        "quality": ["medium"],
-        "min_height": None,
-        "min_width": None,
-    }
-
-    criteria["iq-triplet-low"] = {
-        "dataset": ["validation-robustness"],
-        "quality": ["low"],
-        "min_height": None,
-        "min_width": None,
-    }
-
     return criteria
 
 
@@ -480,49 +418,7 @@ def run(opt, f_txt, exp_name, inf_set):
     if inf_set == 'Test':
         val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['test'])
         print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'All-Comers':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['all-comers'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Test-Corrupt':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['test-corrupt'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'BORN':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['born'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'ARGOS-DS34':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['argos-ds34'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'ARGOS-DS5':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['argos-ds5'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'IQ-Triplet':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['iq-triplet'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'IQ-Triplet-HQ':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['iq-triplet-high'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'IQ-Triplet-MQ':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['iq-triplet-medium'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'IQ-Triplet-LQ':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['iq-triplet-low'])
-        print('Found {} images...'.format(len(val_inclusion)))
 
-    # Paths for Journal: Validation Set with different quality levels by means of video frames
-    elif inf_set == 'Val-HQ':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['dev'])
-        val_inclusion_extra = read_inclusion(path=CACHE_PATH_EXTRA, criteria=criteria['dev'])
-        val_inclusion = val_inclusion + val_inclusion_extra
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-MQ':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['dev'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-LQ':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['dev'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-Img':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['dev-neo'])
-        print('Found {} images...'.format(len(val_inclusion)))
 
     else:
         raise Exception('Unrecognized DEFINE_SET: {}'.format(inf_set))
@@ -853,34 +749,7 @@ def run(opt, f_txt, exp_name, inf_set):
     # Write Classification performance to file
     if inf_set == 'Test':
         f_txt.write(f'### Test Set (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'All-Comers':
-        f_txt.write(f'### All-Comers (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Test-Corrupt':
-        f_txt.write(f'### Corrupt Test Set (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'BORN':
-        f_txt.write(f'### BORN Module (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'ARGOS-DS34':
-        f_txt.write(f'### ARGOS-Dataset 3/4 (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'ARGOS-DS5':
-        f_txt.write(f'### ARGOS-Dataset 5 (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'IQ-Triplet':
-        f_txt.write(f'### IQ-Triplet (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'IQ-Triplet-HQ':
-        f_txt.write(f'### IQ-Triplet-HQ (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'IQ-Triplet-MQ':
-        f_txt.write(f'### IQ-Triplet-MQ (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'IQ-Triplet-LQ':
-        f_txt.write(f'### IQ-Triplet-LQ (Threshold = {opt.threshold}) ###')
 
-    # Datasets for Journal experiments
-    elif inf_set == 'Val-HQ':
-        f_txt.write(f'### Validation-HQ (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Val-MQ':
-        f_txt.write(f'### Validation-MQ (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Val-LQ':
-        f_txt.write(f'### Validation-LQ (Threshold = {opt.threshold}) ###')
-    elif inf_set == 'Val-Img':
-        f_txt.write(f'### Validation-Images (Threshold = {opt.threshold}) ###')
 
     # Write performance to textfile (Classification only
     f_txt.write('\nClassification Performance')
@@ -947,11 +816,13 @@ def run(opt, f_txt, exp_name, inf_set):
 
 if __name__ == '__main__':
     """SPECIFY PATH FOR SAVING"""
-    SAVE_DIR = os.path.join(os.getcwd(), '')
+    
 
     """ARGUMENT PARSER"""
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--experimentnames', type=list_of_settings)
+    parser.add_argument('--output_dir', type=str, default='output')
+    parser.add_argument('--cache_path', type=str, default='cache')
+    parser.add_argument('--experiment_names', type=list_of_settings)
     parser.add_argument('--evaluate_sets', type=list_of_settings)
     parser.add_argument('--ground_truth', type=str, default='Plausible')
     parser.add_argument('--threshold', type=float, default=0.5)
@@ -959,8 +830,10 @@ if __name__ == '__main__':
     parser.add_argument('--textfile', type=str, default='Results.txt')
     inference_opt = parser.parse_args()
 
+    SAVE_DIR = inference_opt.output_dir
+    CACHE_PATH = inference_opt.cache_path
     """LOOP OVER ALL EXPERIMENTS"""
-    for exp_name in inference_opt.experimentnames:
+    for exp_name in inference_opt.experiment_names:
         # EXTRACT INFORMATION FROM PARAMETERS USED IN EXPERIMENT
         f = open(os.path.join(SAVE_DIR, exp_name, 'params.json'))
         data = json.load(f)
@@ -982,52 +855,14 @@ if __name__ == '__main__':
 
         # Create text file for writing results
         f = open(os.path.join(SAVE_DIR, exp_name, opt.textfile), 'x')
-        f_txt = open(os.path.join(SAVE_DIR, exp_name, opt.textfile), 'a')
-
         # Loop over all sets
         for inf_set in opt.evaluate_sets:
             if inf_set == 'Test':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
                 OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Test Set (Test)')
-            elif inf_set == 'All-Comers':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'All-Comers Set')
-            elif inf_set == 'Test-Corrupt':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Corrupt Test Set')
-            elif inf_set == 'BORN':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'BORN Module Set')
-            elif inf_set == 'ARGOS-DS34':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'ARGOS Fuji Set - DS34')
-            elif inf_set == 'ARGOS-DS5':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'ARGOS Fuji Set - DS5')
-            elif inf_set == 'IQ-Triplet':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'IQ-Triplet Set')
-            elif inf_set == 'IQ-Triplet-HQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'IQ-Triplet Set - HQ')
-            elif inf_set == 'IQ-Triplet-MQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'IQ-Triplet Set - MQ')
-            elif inf_set == 'IQ-Triplet-LQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'IQ-Triplet Set - LQ')
-
-            # Sets for validation
-            elif inf_set == 'Val-HQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
-                CACHE_PATH_EXTRA = os.path.join(os.getcwd(), 'cache', '')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Val - HQ')
-            elif inf_set == 'Val-MQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Val - MQ')
-            elif inf_set == 'Val-LQ':
-                CACHE_PATH = os.path.join(os.getcwd(), 'cache', '')
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Val - LQ')
+            elif inf_set == 'Val':
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set (Val)')
+            elif inf_set == 'Extra-Val':
+                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Extra Validation Set (Extra-Val)')
             else:
                 raise ValueError
 

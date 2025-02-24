@@ -322,8 +322,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate cache for WLE images')
     parser.add_argument('--root_dir', type=str, help='Root directory for WLE images')
     parser.add_argument('--mask_dir', type=str, help='Root directory for masks')
-    parser.add_argument('--subtlety_dir', type=str, help='Root directory for subtlety')
-    parser.add_argument('--quality_dir', type=str, help='Root directory for quality')
+    parser.add_argument('--subtlety_dir', type=str, help='Root directory for subtlety', default=None)
+    parser.add_argument('--quality_dir', type=str, help='Root directory for quality', default=None)
     
     
     """DEFINE PATHS AND STORING FOLDERS FOR REGULAR TESTING"""
