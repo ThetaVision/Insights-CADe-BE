@@ -1932,6 +1932,11 @@ def caformer_s18(opt, pretrained=False, **kwargs):
                 print('Loading DINO Default GastroNet Weights in CAFormer with ReLU...')
                 state_dict = torch.load(opt.weights)
                 model.load_state_dict(state_dict, False)
+            elif 'final' in opt.weights:
+                # Final weights
+                print('Loading Final Weights in CAFormer with ReLU...')
+                state_dict = torch.load(opt.weights)
+                model.load_state_dict(state_dict, True)
 
     return model
 

@@ -4,4 +4,4 @@ wandb/*
 
 *.pyc
 
-experiemnts/*
+experiments/*
