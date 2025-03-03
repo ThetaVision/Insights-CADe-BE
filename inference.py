@@ -449,7 +449,6 @@ def run(opt, f_txt, exp_name, inf_set):
     model = Model(opt=opt)
     best_index = find_best_model(path=os.path.join(exp_name), finetune=False)
     checkpoint = torch.load(os.path.join(exp_name, best_index))['state_dict']
-    print(os.path.join(exp_name, best_index))
     # Adapt state_dict keys (remove model. from the key and save again)
     if not os.path.exists(os.path.join(exp_name, 'final_pytorch_model.pt')):
 
@@ -467,7 +466,7 @@ def run(opt, f_txt, exp_name, inf_set):
         )
 
     # Load weights
-    weights = torch.load(os.path.join(exp_name, 'final_pytorch_model.pt'))
+    weights = torch.load(os.path.join(exp_name, 'final_pytorch_model.pt'), weights_only=True)
     model.load_state_dict(weights, strict=True)
 
     # Initialize metrics
