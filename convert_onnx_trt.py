@@ -14,39 +14,51 @@ def to_numpy(tensor):
     return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
 def export_to_onnx(torch_model, args):
+    # Set precision
+    if args.precision == "fp16":
+        torch_model = torch_model.half()  # Convert model to FP16
+        x = torch.randn(args.batch_size, 3, 256, 256, requires_grad=True).half()  # FP16 input
+        print("Exporting model in FP16 precision.")
+    elif args.precision == "int8":
+        torch_model = torch.quantization.quantize_dynamic(
+            torch_model, {torch.nn.Linear}, dtype=torch.qint8
+        )  # Convert model to INT8 dynamically
+        x = torch.randn(args.batch_size, 3, 256, 256, requires_grad=True)  # INT8 inputs still need FP32
+        print("Exporting model in INT8 precision (dynamic quantization).")
+    else:  # Default: FP32
+        x = torch.randn(args.batch_size, 3, 256, 256, requires_grad=True)
+        print("Exporting model in FP32 precision.")
 
     # Export to ONNX
-    x = torch.randn(args.batch_size, 3, 256, 256, requires_grad=True)
     torch_out_cls, torch_out_seg = torch_model(x)
 
     torch.onnx.export(torch_model,           # model being run
                   x,                         # model input (or a tuple for multiple inputs)
-                  args.onnx_model,           # where to save the model (can be a file or file-like object)
-                  export_params=True,        # store the trained parameter weights inside the model file
-                  opset_version=11,          # the ONNX version to export the model to
-                  do_constant_folding=True,  # whether to execute constant folding for optimization
-                  input_names = ['input'],   # the model's input names
-                  output_names = ['output'], # the model's output names
-                  dynamic_axes={'input' : {0 : 'batch_size'},    # variable length axes
-                                'output' : {0 : 'batch_size'}})
-    
-    # Load ONNX model
+                  args.onnx_model,           # where to save the model
+                  export_params=True,        # store trained weights inside the model
+                  opset_version=11,          # ONNX version
+                  do_constant_folding=True,  # Optimize constant expressions
+                  input_names=['input'],     # Input names
+                  output_names=['output'],   # Output names
+                  dynamic_axes={'input': {0: 'batch_size'},    # Variable batch size
+                                'output': {0: 'batch_size'}})
+
+    # Load and check ONNX model
     onnx_model = onnx.load(args.onnx_model)
-
-    # check that the model is well formed
     onnx.checker.check_model(onnx_model, full_check=True)
+    print('ONNX model is well-formed.')
 
-    print('ONNX model is well formed')
-
+    # ONNX Runtime Inference
     ort_session = onnxruntime.InferenceSession(args.onnx_model)
 
-    
-    
-    # compute ONNX Runtime output prediction
+    # Convert input to numpy
+    def to_numpy(tensor):
+        return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+
     ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(x)}
     ort_outs = ort_session.run(None, ort_inputs)
-    ort_outs_cls = ort_outs[0]
-    ort_outs_seg = ort_outs[1]
+
+    ort_outs_cls, ort_outs_seg = ort_outs
 
     np.testing.assert_allclose(to_numpy(torch_out_cls), ort_outs_cls, rtol=1e-03, atol=1e-05)
     np.testing.assert_allclose(to_numpy(torch_out_seg), ort_outs_seg, rtol=1e-03, atol=1e-05)
@@ -56,7 +68,6 @@ def export_to_onnx(torch_model, args):
     return onnx_model
 
 def export_to_trt(args):
-    PRECISION = np.float32
     # # convert onnx model to tensorrt model
     TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
 
@@ -66,8 +77,11 @@ def export_to_trt(args):
     # builder.max_batch_size = args.batch_size
     # builder.fp32_mode = True
 
-    # create network
-    network = builder.create_network()
+    # Explicit batch flag
+    explicit_batch = 1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
+
+    # Create network with EXPLICIT_BATCH
+    network = builder.create_network(explicit_batch)
     parser = trt.OnnxParser(network, TRT_LOGGER)
     
     # parser.parse(onnx_model.SerializeToString())
@@ -82,6 +96,16 @@ def export_to_trt(args):
     # build engine
     config = builder.create_builder_config()
     # engine = builder.build_cuda_engine(network)
+
+    # Set precision mode
+    if args.precision == "fp16":
+        config.set_flag(trt.BuilderFlag.FP16)
+        print("Using FP16 precision.")
+    elif args.precision == "int8":
+        config.set_flag(trt.BuilderFlag.INT8)
+        print("Using INT8 precision (calibration required).")
+    else:
+        print("Using FP32 precision (default).")
 
     # Define an optimization profile for dynamic input shapes.
     # Replace "input_tensor_name" with the actual name of your input.
@@ -319,6 +343,7 @@ if __name__ == '__main__':
     parser.add_argument("--num_classes", type=int, default=1)
     parser.add_argument("--speed_test_only", type=bool, default=False)
     parser.add_argument("--num_runs", type=int, default=20)
+    parser.add_argument("--precision", type=str, default="fp16", choices=["fp32", "fp16", "int8"])
 
     args = parser.parse_args()
 
