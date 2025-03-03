@@ -29,8 +29,8 @@ from timm.layers.helpers import to_2tuple
 from timm.models.layers import trunc_normal_, DropPath
 from timm.models.registry import register_model
 
-from segmentation_models_pytorch.base import SegmentationHead
-from segmentation_models_pytorch.decoders.unetplusplus.decoder import UnetPlusPlusDecoder
+# from segmentation_models_pytorch.base import SegmentationHead
+# from segmentation_models_pytorch.decoders.unetplusplus.decoder import UnetPlusPlusDecoder
 
 """""" """""" """""" """""" """""" """"""
 """" DEFINE METAFORMER-FPN MODEL"""
@@ -375,132 +375,6 @@ class MetaFormerDeepLabV3p(nn.Module):
 
         # Produce DeepLabV3+ output
         seg = self.deeplabv3p(x, features[0], features[-1])
-
-        return cls, seg
-
-    def forward_features_list(self, x):
-        # Produce encoder output
-        x, features = self.metaformer.forward_features(x)
-
-        return features
-
-
-"""""" """""" """""" """""" """""" """"""
-"""" DEFINE METAFORMER-UNET MODEL"""
-"""""" """""" """""" """""" """""" """"""
-
-
-class MetaFormerUNetpp(nn.Module):
-    def __init__(self, opt):
-        super().__init__()
-
-        # Implement and initialize backbone (Identity)
-        if "identity" in opt.backbone.lower() and "s12" in opt.backbone.lower():
-            self.metaformer = identityformer_s12(opt=opt, pretrained=True)
-            feature_channels = (64, 128, 320, 512)
-        elif "identity" in opt.backbone.lower() and "s24" in opt.backbone.lower():
-            self.metaformer = identityformer_s24(opt=opt, pretrained=True)
-            feature_channels = (64, 128, 320, 512)
-        elif "identity" in opt.backbone.lower() and "s36" in opt.backbone.lower():
-            self.metaformer = identityformer_s36(opt=opt, pretrained=True)
-            feature_channels = (64, 128, 320, 512)
-        elif "identity" in opt.backbone.lower() and "m36" in opt.backbone.lower():
-            self.metaformer = identityformer_m36(opt=opt, pretrained=True)
-            feature_channels = (96, 192, 384, 768)
-        elif "identity" in opt.backbone.lower() and "m48" in opt.backbone.lower():
-            self.metaformer = identityformer_m48(opt=opt, pretrained=True)
-            feature_channels = (96, 192, 384, 768)
-
-        # Implement and initialize backbone (Random)
-        elif "rand" in opt.backbone.lower() and "s12" in opt.backbone.lower():
-            self.metaformer = randformer_s12(opt=opt, pretrained=True)
-            feature_channels = (64, 128, 320, 512)
-        elif "rand" in opt.backbone.lower() and "s24" in opt.backbone.lower():
-            self.metaformer = randformer_s24(opt=opt, pretrained=True)
-            feature_channels = (64, 128, 320, 512)
-        elif "rand" in opt.backbone.lower() and "s36" in opt.backbone.lower():
-            self.metaformer = randformer_s36(opt=opt, pretrained=True)
-            feature_channels = (64, 128, 320, 512)
-        elif "rand" in opt.backbone.lower() and "m36" in opt.backbone.lower():
-            self.metaformer = randformer_m36(opt=opt, pretrained=True)
-            feature_channels = (96, 192, 384, 768)
-        elif "rand" in opt.backbone.lower() and "m48" in opt.backbone.lower():
-            self.metaformer = randformer_m48(opt=opt, pretrained=True)
-            feature_channels = (96, 192, 384, 768)
-
-        # Implement and initialize backbone (Pool)
-        elif "pool" in opt.backbone.lower() and "s12" in opt.backbone.lower():
-            self.metaformer = poolformerv2_s12(opt=opt, pretrained=True)
-            feature_channels = (64, 128, 320, 512)
-        elif "pool" in opt.backbone.lower() and "s24" in opt.backbone.lower():
-            self.metaformer = poolformerv2_s24(opt=opt, pretrained=True)
-            feature_channels = (64, 128, 320, 512)
-        elif "pool" in opt.backbone.lower() and "s36" in opt.backbone.lower():
-            self.metaformer = poolformerv2_s36(opt=opt, pretrained=True)
-            feature_channels = (64, 128, 320, 512)
-        elif "pool" in opt.backbone.lower() and "m36" in opt.backbone.lower():
-            self.metaformer = poolformerv2_m36(opt=opt, pretrained=True)
-            feature_channels = (96, 192, 384, 768)
-        elif "pool" in opt.backbone.lower() and "m48" in opt.backbone.lower():
-            self.metaformer = poolformerv2_m48(opt=opt, pretrained=True)
-            feature_channels = (96, 192, 384, 768)
-
-        # Implement and initialize backbone (Random)
-        elif "conv" in opt.backbone.lower() and "s18" in opt.backbone.lower():
-            self.metaformer = convformer_s18(opt=opt, pretrained=True)
-            feature_channels = (64, 128, 320, 512)
-        elif "conv" in opt.backbone.lower() and "s36" in opt.backbone.lower():
-            self.metaformer = convformer_s36(opt=opt, pretrained=True)
-            feature_channels = (64, 128, 320, 512)
-        elif "conv" in opt.backbone.lower() and "m36" in opt.backbone.lower():
-            self.metaformer = convformer_m36(opt=opt, pretrained=True)
-            feature_channels = (96, 192, 384, 576)
-        elif "conv" in opt.backbone.lower() and "b36" in opt.backbone.lower():
-            self.metaformer = convformer_b36(opt=opt, pretrained=True)
-            feature_channels = (128, 256, 512, 768)
-
-        # Implement and initialize backbone (Random)
-        elif "ca" in opt.backbone.lower() and "s18" in opt.backbone.lower():
-            self.metaformer = caformer_s18(opt=opt, pretrained=True)
-            feature_channels = (64, 128, 320, 512)
-        elif "ca" in opt.backbone.lower() and "s36" in opt.backbone.lower():
-            self.metaformer = caformer_s36(opt=opt, pretrained=True)
-            feature_channels = (64, 128, 320, 512)
-        elif "ca" in opt.backbone.lower() and "m36" in opt.backbone.lower():
-            self.metaformer = caformer_m36(opt=opt, pretrained=True)
-            feature_channels = (96, 192, 384, 576)
-        elif "ca" in opt.backbone.lower() and "b36" in opt.backbone.lower():
-            self.metaformer = caformer_b36(opt=opt, pretrained=True)
-            feature_channels = (128, 256, 512, 768)
-
-        # Define Exception
-        else:
-            raise Exception("Unrecognized MetaFormer version...")
-
-        # Define UNet Decoder
-        encoder_channels = [3] + list(feature_channels)
-        decoder_channels = list(feature_channels)[::-1][1:] + [32]
-
-        self.UNet = UnetPlusPlusDecoder(
-            encoder_channels=encoder_channels, decoder_channels=decoder_channels, n_blocks=len(decoder_channels)
-        )
-        self.seg_head = SegmentationHead(
-            in_channels=decoder_channels[-1],
-            out_channels=opt.num_classes,
-            activation=None,
-            upsampling=2,
-        )
-
-    def forward(self, x):
-        # Produce encoder output
-        cls, features = self.metaformer(x)
-
-        # Repeat first feature block
-        features = [features[0], *features]
-
-        # Produce UNet output
-        seg = self.UNet(*features)
-        seg = self.seg_head(seg)
 
         return cls, seg
 
