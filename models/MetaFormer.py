@@ -94,16 +94,8 @@ class MetaFormerFPN(nn.Module):
 
         # Implement and initialize backbone (Random)
         elif "conv" in opt.backbone.lower() and "s18" in opt.backbone.lower():
-            if "waveletdown" in opt.backbone.lower():
-                self.metaformer = convformer_waveletdown_s18(opt=opt, pretrained=True)
-                feature_channels = (64, 128, 320, 512)
-            elif "waveletfuse" in opt.backbone.lower():
-                self.metaformer = convformer_waveletfuse_s18(opt=opt, pretrained=True)
-                # feature_channels = (73, 137, 329, 521)
-                feature_channels = (76, 140, 332, 524)
-            else:
-                self.metaformer = convformer_s18(opt=opt, pretrained=True)
-                feature_channels = (64, 128, 320, 512)
+            self.metaformer = convformer_s18(opt=opt, pretrained=True)
+            feature_channels = (64, 128, 320, 512)
         elif "conv" in opt.backbone.lower() and "s36" in opt.backbone.lower():
             self.metaformer = convformer_s36(opt=opt, pretrained=True)
             feature_channels = (64, 128, 320, 512)
@@ -116,23 +108,8 @@ class MetaFormerFPN(nn.Module):
 
         # Implement and initialize backbone (Random)
         elif "ca" in opt.backbone.lower() and "s18" in opt.backbone.lower():
-            if "swin" in opt.backbone.lower():
-                self.metaformer = caformer_s18_swin(opt=opt, pretrained=True)
-                feature_channels = (64, 128, 320, 512)
-            elif "pvt" in opt.backbone.lower():
-                self.metaformer = caformer_s18_pvt(opt=opt, pretrained=True)
-                feature_channels = (64, 128, 320, 512)
-            else:
-                if "waveletdown" in opt.backbone.lower():
-                    self.metaformer = caformer_waveletdown_s18(opt=opt, pretrained=True)
-                    feature_channels = (64, 128, 320, 512)
-                elif "waveletfuse" in opt.backbone.lower():
-                    self.metaformer = caformer_waveletfuse_s18(opt=opt, pretrained=True)
-                    # feature_channels = (73, 137, 329, 521)
-                    feature_channels = (76, 140, 332, 524)
-                else:
-                    self.metaformer = caformer_s18(opt=opt, pretrained=True)
-                    feature_channels = (64, 128, 320, 512)
+            self.metaformer = caformer_s18(opt=opt, pretrained=True)
+            feature_channels = (64, 128, 320, 512)
         elif "ca" in opt.backbone.lower() and "s36" in opt.backbone.lower():
             self.metaformer = caformer_s36(opt=opt, pretrained=True)
             feature_channels = (64, 128, 320, 512)
@@ -142,42 +119,6 @@ class MetaFormerFPN(nn.Module):
         elif "ca" in opt.backbone.lower() and "b36" in opt.backbone.lower():
             self.metaformer = caformer_b36(opt=opt, pretrained=True)
             feature_channels = (128, 256, 512, 768)
-
-        # Implement and initialize backbone (DWT)
-        elif "dwt" in opt.backbone.lower() and "s18" in opt.backbone.lower():
-            if "cdwt" in opt.backbone.lower():
-                if "waveletfuse" in opt.backbone.lower():
-                    self.metaformer = cdwtformer_waveletfuse_s18(opt=opt, pretrained=True)
-                    # feature_channels = (73, 137, 329, 521)
-                    feature_channels = (76, 140, 332, 524)
-                else:
-                    self.metaformer = cdwtformer_s18(opt=opt, pretrained=True)
-                    feature_channels = (64, 128, 320, 512)
-            elif "dwtc" in opt.backbone.lower():
-                if "waveletfuse" in opt.backbone.lower():
-                    self.metaformer = dwtcformer_waveletfuse_s18(opt=opt, pretrained=True)
-                    # feature_channels = (73, 137, 329, 521)
-                    feature_channels = (76, 140, 332, 524)
-                else:
-                    self.metaformer = dwtcformer_s18(opt=opt, pretrained=True)
-                    feature_channels = (64, 128, 320, 512)
-            elif "dwta" in opt.backbone.lower():
-                if "waveletfuse" in opt.backbone.lower():
-                    self.metaformer = dwtaformer_waveletfuse_s18(opt=opt, pretrained=True)
-                    # feature_channels = (73, 137, 329, 521)
-                    feature_channels = (76, 140, 332, 524)
-                else:
-                    self.metaformer = dwtaformer_s18(opt=opt, pretrained=True)
-                    feature_channels = (64, 128, 320, 512)
-            else:
-                if "waveletfuse" in opt.backbone.lower():
-                    self.metaformer = dwtformer_waveletfuse_s18(opt=opt, pretrained=True)
-                    # feature_channels = (73, 137, 329, 521)
-                    feature_channels = (76, 140, 332, 524)
-                else:
-                    self.metaformer = dwtformer_s18(opt=opt, pretrained=True)
-                    feature_channels = (64, 128, 320, 512)
-
         # Define Exception
         else:
             raise Exception("Unrecognized MetaFormer version...")
@@ -272,16 +213,8 @@ class MetaFormerUperNet(nn.Module):
 
         # Implement and initialize backbone (Random)
         elif "conv" in opt.backbone.lower() and "s18" in opt.backbone.lower():
-            if "waveletdown" in opt.backbone.lower():
-                self.metaformer = convformer_waveletdown_s18(opt=opt, pretrained=True)
-                feature_channels = (64, 128, 320, 512)
-            elif "waveletfuse" in opt.backbone.lower():
-                self.metaformer = convformer_waveletfuse_s18(opt=opt, pretrained=True)
-                # feature_channels = (73, 137, 329, 521)
-                feature_channels = (76, 140, 332, 524)
-            else:
-                self.metaformer = convformer_s18(opt=opt, pretrained=True)
-                feature_channels = (64, 128, 320, 512)
+            self.metaformer = convformer_s18(opt=opt, pretrained=True)
+            feature_channels = (64, 128, 320, 512)
         elif "conv" in opt.backbone.lower() and "s36" in opt.backbone.lower():
             self.metaformer = convformer_s36(opt=opt, pretrained=True)
             feature_channels = (64, 128, 320, 512)
@@ -401,16 +334,8 @@ class MetaFormerDeepLabV3p(nn.Module):
 
         # Implement and initialize backbone (Random)
         elif "conv" in opt.backbone.lower() and "s18" in opt.backbone.lower():
-            if "waveletdown" in opt.backbone.lower():
-                self.metaformer = convformer_waveletdown_s18(opt=opt, pretrained=True)
-                feature_channels = (64, 128, 320, 512)
-            elif "waveletfuse" in opt.backbone.lower():
-                self.metaformer = convformer_waveletfuse_s18(opt=opt, pretrained=True)
-                # feature_channels = (73, 137, 329, 521)
-                feature_channels = (76, 140, 332, 524)
-            else:
-                self.metaformer = convformer_s18(opt=opt, pretrained=True)
-                feature_channels = (64, 128, 320, 512)
+            self.metaformer = convformer_s18(opt=opt, pretrained=True)
+            feature_channels = (64, 128, 320, 512)
         elif "conv" in opt.backbone.lower() and "s36" in opt.backbone.lower():
             self.metaformer = convformer_s36(opt=opt, pretrained=True)
             feature_channels = (64, 128, 320, 512)
@@ -522,16 +447,8 @@ class MetaFormerUNetpp(nn.Module):
 
         # Implement and initialize backbone (Random)
         elif "conv" in opt.backbone.lower() and "s18" in opt.backbone.lower():
-            if "waveletdown" in opt.backbone.lower():
-                self.metaformer = convformer_waveletdown_s18(opt=opt, pretrained=True)
-                feature_channels = (64, 128, 320, 512)
-            elif "waveletfuse" in opt.backbone.lower():
-                self.metaformer = convformer_waveletfuse_s18(opt=opt, pretrained=True)
-                # feature_channels = (73, 137, 329, 521)
-                feature_channels = (76, 140, 332, 524)
-            else:
-                self.metaformer = convformer_s18(opt=opt, pretrained=True)
-                feature_channels = (64, 128, 320, 512)
+            self.metaformer = convformer_s18(opt=opt, pretrained=True)
+            feature_channels = (64, 128, 320, 512)
         elif "conv" in opt.backbone.lower() and "s36" in opt.backbone.lower():
             self.metaformer = convformer_s36(opt=opt, pretrained=True)
             feature_channels = (64, 128, 320, 512)
@@ -597,8 +514,6 @@ class MetaFormerUNetpp(nn.Module):
 """""" """""" """""" """"""
 """" HELPER FUNCTIONS """
 """""" """""" """""" """"""
-
-
 # Default Downsampling function of MetaFormer
 class Downsampling(nn.Module):
     """

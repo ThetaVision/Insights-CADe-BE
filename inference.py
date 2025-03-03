@@ -36,18 +36,36 @@ matplotlib.use('TkAgg')
 def get_data_inclusion_criteria():
     criteria = dict()
 
-    criteria['dev'] = {
-        'modality': ['wle'],
-        'dataset': ['validation'],
-        'min_height': None,
-        'min_width': None,
+    criteria["train"] = {
+        "modality": ["wle"],
+        "dataset": ["training"],
+        "protocol": ["Retrospectief", "Prospectief"],
+        "min_height": None,
+        "min_width": None,
     }
 
-    criteria['test'] = {
-        'modality': ['wle'],
-        'dataset': ['test'],
-        'min_height': None,
-        'min_width': None,
+    criteria["validation"] = {
+        "modality": ["wle"],
+        "dataset": ["validation"],
+        "protocol": ["Retrospectief", "Prospectief"],
+        "min_height": None,
+        "min_width": None,
+    }
+
+    criteria["extra-validation"] = {
+        "modality": ["wle"],
+        "dataset": ["extraval"],
+        "protocol": ["Prospectief"],
+        "min_height": None,
+        "min_width": None,
+    }
+
+    criteria["test"] = {
+        "modality": ["wle"],
+        "dataset": ["test"],
+        "protocol": ["Prospectief"],
+        "min_height": None,
+        "min_width": None,
     }
 
     return criteria
@@ -198,19 +216,14 @@ def run_val_thresholds(opt, exp_name, inf_set):
     criteria = get_data_inclusion_criteria()
 
     # Validation Set with different quality levels by means of video frames
-    if inf_set == 'Val-HQ':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['dev'])
-        val_inclusion_extra = read_inclusion(path=CACHE_PATH_EXTRA, criteria=criteria['dev'])
-        val_inclusion = val_inclusion + val_inclusion_extra
+    if inf_set == 'Val':
+        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['val'])
         print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-MQ':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['dev'])
+    elif inf_set == 'Extra-Val':
+        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['extra-val'])
         print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-LQ':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['dev'])
-        print('Found {} images...'.format(len(val_inclusion)))
-    elif inf_set == 'Val-Img':
-        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['dev-neo'])
+    elif inf_set == 'Test':
+        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['test'])
         print('Found {} images...'.format(len(val_inclusion)))
     else:
         raise Exception('Unrecognized DEFINE_SET: {}'.format(inf_set))
@@ -418,6 +431,12 @@ def run(opt, f_txt, exp_name, inf_set):
     if inf_set == 'Test':
         val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['test'])
         print('Found {} images...'.format(len(val_inclusion)))
+    elif inf_set == 'Val':
+        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['validation'])
+        print('Found {} images...'.format(len(val_inclusion)))
+    elif inf_set == 'Extra-Val':
+        val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['extra-validation'])
+        print('Found {} images...'.format(len(val_inclusion)))
 
 
     else:
@@ -428,23 +447,27 @@ def run(opt, f_txt, exp_name, inf_set):
 
     # Construct Model and load weights
     model = Model(opt=opt)
-    best_index = find_best_model(path=os.path.join(SAVE_DIR, exp_name), finetune=False)
-    checkpoint = torch.load(os.path.join(SAVE_DIR, exp_name, best_index))['state_dict']
-
+    best_index = find_best_model(path=os.path.join(exp_name), finetune=False)
+    checkpoint = torch.load(os.path.join(exp_name, best_index))['state_dict']
+    print(os.path.join(exp_name, best_index))
     # Adapt state_dict keys (remove model. from the key and save again)
-    if not os.path.exists(os.path.join(SAVE_DIR, exp_name, 'final_pytorch_model.pt')):
-        checkpoint_keys = list(checkpoint.keys())
-        for key in checkpoint_keys:
-            checkpoint[key.replace('model.', '')] = checkpoint[key]
-            del checkpoint[key]
-        model.load_state_dict(checkpoint, strict=True)
+    if not os.path.exists(os.path.join(exp_name, 'final_pytorch_model.pt')):
+
+        new_state_dict = {}
+        for key in checkpoint:
+            new_state_dict[key.replace('model.', '')] = checkpoint[key]
+
+        # delete cls_criterion.pos_weight from state_dict
+        del new_state_dict['cls_criterion.pos_weight']
+
+        model.load_state_dict(new_state_dict, strict=True)
         torch.save(
             model.state_dict(),
-            os.path.join(SAVE_DIR, exp_name, 'final_pytorch_model.pt'),
+            os.path.join(exp_name, 'final_pytorch_model.pt'),
         )
 
     # Load weights
-    weights = torch.load(os.path.join(SAVE_DIR, exp_name, 'final_pytorch_model.pt'))
+    weights = torch.load(os.path.join(exp_name, 'final_pytorch_model.pt'))
     model.load_state_dict(weights, strict=True)
 
     # Initialize metrics
@@ -816,13 +839,13 @@ def run(opt, f_txt, exp_name, inf_set):
 
 if __name__ == '__main__':
     """SPECIFY PATH FOR SAVING"""
-    
+    # python inference.py --output_dir "C:\Users\20195435\Documents\theta\projects\cosmo\Insights-CADe-BE\output" --cache_path "C:\Users\20195435\Documents\theta\projects\cosmo\barretts_cache" --experiment_name "C:\Users\20195435\Documents\theta\projects\cosmo\Insights-CADe-BE\experiments\baseline" --evaluate_sets Test Val Extra-Val --ground_truth Plausible --threshold 0.5 --min_sensitivity 0.9 --textfile Results.txt
 
     """ARGUMENT PARSER"""
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--output_dir', type=str, default='output')
     parser.add_argument('--cache_path', type=str, default='cache')
-    parser.add_argument('--experiment_names', type=list_of_settings)
+    parser.add_argument('--experiment_name', type=str, default='GastroNet', help='path to experiment')
     parser.add_argument('--evaluate_sets', type=list_of_settings)
     parser.add_argument('--ground_truth', type=str, default='Plausible')
     parser.add_argument('--threshold', type=float, default=0.5)
@@ -832,46 +855,44 @@ if __name__ == '__main__':
 
     SAVE_DIR = inference_opt.output_dir
     CACHE_PATH = inference_opt.cache_path
-    """LOOP OVER ALL EXPERIMENTS"""
-    for exp_name in inference_opt.experiment_names:
-        # EXTRACT INFORMATION FROM PARAMETERS USED IN EXPERIMENT
-        f = open(os.path.join(SAVE_DIR, exp_name, 'params.json'))
-        data = json.load(f)
-        opt = {
-            'experimentname': exp_name,
-            'backbone': data['backbone'],
-            'seg_branch': data['seg_branch'],
-            'imagesize': data['imagesize'],
-            'num_classes': data['num_classes'],
-            'label_smoothing': data['label_smoothing'],
-            'weights': [data['weights'] if 'weights' in data.keys() else 'GastroNet'][0],
-            'threshold': inference_opt.threshold,
-            'min_sensitivity': inference_opt.min_sensitivity,
-            'ground_truth': inference_opt.ground_truth,
-            'evaluate_sets': inference_opt.evaluate_sets,
-            'textfile': inference_opt.textfile,
-        }
-        opt = argparse.Namespace(**opt)
 
-        # Create text file for writing results
-        f = open(os.path.join(SAVE_DIR, exp_name, opt.textfile), 'x')
-        f_txt = open(os.path.join(SAVE_DIR, exp_name, opt.textfile), 'a')
-        # Loop over all sets
-        for inf_set in opt.evaluate_sets:
-            if inf_set == 'Test':
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Test Set (Test)')
-            elif inf_set == 'Val':
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set (Val)')
-            elif inf_set == 'Extra-Val':
-                OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Extra Validation Set (Extra-Val)')
-            else:
-                raise ValueError
+    exp_name = inference_opt.experiment_name
+    # EXTRACT INFORMATION FROM PARAMETERS USED IN EXPERIMENT
+    f = open(os.path.join(SAVE_DIR, exp_name, 'local_params.json'))
+    data = json.load(f)
 
-            # # Run thresholds
-            # run_val_thresholds(opt=opt, exp_name=exp_name, inf_set=inf_set)
+    opt = {
+        'experimentname': exp_name,
+        'backbone': data['backbone'],
+        'seg_branch': data['seg_branch'],
+        'imagesize': data['imagesize'],
+        'num_classes': data['num_classes'],
+        'label_smoothing': data['label_smoothing'],
+        'threshold': inference_opt.threshold,
+        'min_sensitivity': inference_opt.min_sensitivity,
+        'ground_truth': inference_opt.ground_truth,
+        'evaluate_sets': inference_opt.evaluate_sets,
+        'textfile': inference_opt.textfile,
+        'weights': data['weights'],
+    }
+    opt = argparse.Namespace(**opt)
 
-            # Run inference
-            run(opt=opt, f_txt=f_txt, exp_name=exp_name, inf_set=inf_set)
+    # Create text file for writing results
+    # f = open(os.path.join(exp_name, opt.textfile), 'x')
+    f_txt = open(os.path.join(exp_name, opt.textfile), 'w+')
+    # Loop over all sets
+    for inf_set in opt.evaluate_sets:
+        print('Evaluating set: {}'.format(inf_set))
+        if inf_set == 'Test':
+            OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Test Set (Test)')
+        elif inf_set == 'Val':
+            OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Validation Set (Val)')
+        elif inf_set == 'Extra-Val':
+            OUTPUT_PATH = os.path.join(SAVE_DIR, exp_name, 'Image Inference', 'Extra Validation Set (Extra-Val)')
+        else:
+            raise ValueError('Unrecognized set: {}'.format(inf_set))
+        # Run inference
+        run(opt=opt, f_txt=f_txt, exp_name=exp_name, inf_set=inf_set)
 
         # Close text file
-        f_txt.close()
+    f_txt.close()

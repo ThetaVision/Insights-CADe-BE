@@ -54,17 +54,18 @@ def get_data_inclusion_criteria():
         "min_width": None,
     }
 
-    criteria["finetune"] = {
+    criteria["extra-validation"] = {
         "modality": ["wle"],
-        "dataset": ["training"],
+        "dataset": ["extraval"],
         "protocol": ["Prospectief"],
         "min_height": None,
         "min_width": None,
     }
 
-    criteria["dev"] = {
+    criteria["test"] = {
         "modality": ["wle"],
-        "dataset": ["validation"],
+        "dataset": ["test"],
+        "protocol": ["Prospectief"],
         "min_height": None,
         "min_width": None,
     }
@@ -98,7 +99,7 @@ def find_best_model(path, finetune):
     # List files with certain extension
     if not finetune:
         for file in os.listdir(path):
-            if file.endswith(".ckpt"):
+            if file.endswith(".ckpt") and 'model' in file:
                 val = re.findall(r"\d+\.\d+", file)
                 auc_seg, auc, hmean = val[0], val[1], val[2]
                 value = hmean
