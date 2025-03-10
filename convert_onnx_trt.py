@@ -13,6 +13,29 @@ from utils import common
 def to_numpy(tensor):
     return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
+def quantize_model(model, args):
+    # Quantize the model
+    q_dtype = None
+    if args.precision == "int8":
+        q_dtype = torch.qint8
+    elif args.precision == "fp16":
+        q_dtype = torch.float16
+    else:
+        print("No quantization needed.")
+        return model
+    
+    # qconfig_spec = None
+    supported_modules = {torch.nn.Linear, torch.nn.LSTM, torch.nn.GRU}
+
+    quantized_model = torch.ao.quantization.quantize_dynamic(
+                        model,  # the original model
+                        supported_modules,
+                        dtype=q_dtype,
+    )
+                        
+    return quantized_model
+
+
 def export_to_onnx(torch_model, args):
     # Set precision
     if args.precision == "fp16":
@@ -29,10 +52,13 @@ def export_to_onnx(torch_model, args):
         x = torch.randn(args.batch_size, 3, 256, 256, requires_grad=True)
         print("Exporting model in FP32 precision.")
 
-    # Export to ONNX
+    # Get model results
     torch_out_cls, torch_out_seg = torch_model(x)
 
-    torch.onnx.export(torch_model,           # model being run
+    # Quantize the model
+    quantized_model = quantize_model(torch_model, args)
+
+    torch.onnx.export(quantized_model,           # model being run
                   x,                         # model input (or a tuple for multiple inputs)
                   args.onnx_model,           # where to save the model
                   export_params=True,        # store trained weights inside the model
@@ -50,10 +76,6 @@ def export_to_onnx(torch_model, args):
 
     # ONNX Runtime Inference
     ort_session = onnxruntime.InferenceSession(args.onnx_model)
-
-    # Convert input to numpy
-    def to_numpy(tensor):
-        return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
     ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(x)}
     ort_outs = ort_session.run(None, ort_inputs)
