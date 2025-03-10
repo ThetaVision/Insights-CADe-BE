@@ -18,22 +18,29 @@ def quantize_model(model, args):
     q_dtype = None
     if args.precision == "int8":
         q_dtype = torch.qint8
+
+        # qconfig_spec = None
+        supported_modules = {torch.nn.Linear, torch.nn.LSTM, torch.nn.GRU}
+
+        model = torch.ao.quantization.quantize_dynamic(
+                            model,  # the original model
+                            supported_modules,
+                            dtype=q_dtype,
+        )
+
     elif args.precision == "fp16":
         q_dtype = torch.float16
+        # Convert entire model to FP16
+        model = model.half()
+        
+        # Revert problematic layers back to FP32.
+        for module in model.modules():
+            if isinstance(module, torch.nn.BatchNorm2d) or isinstance(module, torch.nn.BatchNorm1d):
+                module.float()
     else:
         print("No quantization needed.")
-        return model
-    
-    # qconfig_spec = None
-    supported_modules = {torch.nn.Linear, torch.nn.LSTM, torch.nn.GRU}
-
-    quantized_model = torch.ao.quantization.quantize_dynamic(
-                        model,  # the original model
-                        supported_modules,
-                        dtype=q_dtype,
-    )
-                        
-    return quantized_model
+          
+    return model
 
 
 def export_to_onnx(torch_model, args):
