@@ -33,10 +33,6 @@ def quantize_model(model, args):
         # Convert entire model to FP16
         model = model.half()
         
-        # Revert problematic layers back to FP32.
-        for module in model.modules():
-            if isinstance(module, torch.nn.BatchNorm2d) or isinstance(module, torch.nn.BatchNorm1d):
-                module.float()
     else:
         print("No quantization needed.")
           
@@ -46,7 +42,6 @@ def quantize_model(model, args):
 def export_to_onnx(torch_model, args):
     torch_model = torch_model.float()
     torch.set_default_tensor_type('torch.FloatTensor')
-    torch.set_default_tensor_type('torch.cuda.FloatTensor')
     # Set precision
     if args.precision == "fp16":
         torch_model = torch_model.half()  # Convert model to FP16
