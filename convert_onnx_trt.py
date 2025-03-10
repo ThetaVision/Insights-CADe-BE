@@ -29,7 +29,6 @@ def quantize_model(model, args):
         )
 
     elif args.precision == "fp16":
-        q_dtype = torch.float16
         # Convert entire model to FP16
         model = model.half()
         
@@ -165,7 +164,7 @@ def export_to_trt(args):
 
 
 def inference_speed_test_cpu(torch_model, args):
-
+    print("Running inference speed test on CPU...")
     # Assume to_numpy, common.allocate_buffers, and common.do_inference are available.
     
     num_runs = args.num_runs if hasattr(args, 'num_runs') else 10
@@ -174,6 +173,7 @@ def inference_speed_test_cpu(torch_model, args):
     x = torch.randn(args.batch_size, 3, 256, 256)
     if args.precision == "fp16":
         x = x.half()
+        torch_model = torch_model.half()
     elif args.precision == "int8":
         x = x.int8()
     # Warm-up run
@@ -211,6 +211,7 @@ def inference_speed_test_cpu(torch_model, args):
     # ------------------- TensorRT Inference (with CPU input) -------------------
     # Note: Although TensorRT runs on the GPU, this test uses CPU inputs.
     TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
+    trt.init_libnvinfer_plugins(None, "")
     with open(args.trt_model, "rb") as f, trt.Runtime(TRT_LOGGER) as runtime:
         engine = runtime.deserialize_cuda_engine(f.read())
         context = engine.create_execution_context()
@@ -263,6 +264,7 @@ def inference_speed_test_cpu(torch_model, args):
     return avg_torch_time, avg_ort_time, avg_trt_time
 
 def inference_speed_test_gpu(torch_model, args):
+    print("Running inference speed test on GPU...")
 
     # Assume `to_numpy` converts a torch.Tensor to a NumPy array.
     # Also assume that common.allocate_buffers and common.do_inference are defined.
@@ -274,6 +276,7 @@ def inference_speed_test_gpu(torch_model, args):
     # convert input to precision
     if args.precision == "fp16":
         x = x.half()
+        torch_model = torch_model.half()
     elif args.precision == "int8":
         x = x.int8()
 
@@ -317,6 +320,7 @@ def inference_speed_test_gpu(torch_model, args):
 
     # ------------------- TensorRT Inference (GPU) -------------------
     TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
+    trt.init_libnvinfer_plugins(None, "")
     with open(args.trt_model, "rb") as f, trt.Runtime(TRT_LOGGER) as runtime:
         engine = runtime.deserialize_cuda_engine(f.read())
         context = engine.create_execution_context()
