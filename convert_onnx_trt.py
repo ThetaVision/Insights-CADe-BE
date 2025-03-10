@@ -172,6 +172,10 @@ def inference_speed_test_cpu(torch_model, args):
 
     # ------------------- PyTorch Inference (CPU) -------------------
     x = torch.randn(args.batch_size, 3, 256, 256)
+    if args.precision == "fp16":
+        x = x.half()
+    elif args.precision == "int8":
+        x = x.int8()
     # Warm-up run
     _ = torch_model(x)
     torch_times = []
@@ -267,6 +271,12 @@ def inference_speed_test_gpu(torch_model, args):
 
     # ------------------- PyTorch Inference (GPU) -------------------
     x = torch.randn(args.batch_size, 3, 256, 256, device='cuda')
+    # convert input to precision
+    if args.precision == "fp16":
+        x = x.half()
+    elif args.precision == "int8":
+        x = x.int8()
+
     torch_model = torch_model.cuda()
     
     # Warm-up run
