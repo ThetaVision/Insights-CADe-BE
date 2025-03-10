@@ -44,6 +44,9 @@ def quantize_model(model, args):
 
 
 def export_to_onnx(torch_model, args):
+    torch_model = torch_model.float()
+    torch.set_default_tensor_type('torch.FloatTensor')
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
     # Set precision
     if args.precision == "fp16":
         torch_model = torch_model.half()  # Convert model to FP16
@@ -65,6 +68,9 @@ def export_to_onnx(torch_model, args):
     # Quantize the model
     quantized_model = quantize_model(torch_model, args)
 
+    # confirm model is quantized
+
+    # Export the quantized model to ONNX
     torch.onnx.export(quantized_model,           # model being run
                   x,                         # model input (or a tuple for multiple inputs)
                   args.onnx_model,           # where to save the model
