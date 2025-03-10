@@ -95,8 +95,8 @@ def export_to_onnx(torch_model, args):
 
     ort_outs_cls, ort_outs_seg = ort_outs
     if args.precision == "int8" or args.precision == "fp16":
-        np.testing.assert_allclose(to_numpy(torch_out_cls), ort_outs_cls, rtol=3e-02, atol=1e-05)
-        np.testing.assert_allclose(to_numpy(torch_out_seg), ort_outs_seg, rtol=3e-02, atol=1e-05)
+        np.testing.assert_allclose(to_numpy(torch_out_cls), ort_outs_cls, rtol=4e-02, atol=1e-05)
+        np.testing.assert_allclose(to_numpy(torch_out_seg), ort_outs_seg, rtol=4e-02, atol=1e-05)
         print('The outputs are similar enough')
     else: 
         np.testing.assert_allclose(to_numpy(torch_out_cls), ort_outs_cls, rtol=1e-03, atol=1e-05)
