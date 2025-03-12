@@ -9,6 +9,8 @@ from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import torch
 
+from torch.ao import quantization
+
 import cv2
 
 from torchinfo import summary
@@ -434,13 +436,13 @@ def run(opt, f_txt, exp_name, inf_set):
     elif inf_set == 'Val':
         val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['validation'])
         print('Found {} images...'.format(len(val_inclusion)))
+
     elif inf_set == 'Extra-Val':
         val_inclusion = read_inclusion(path=CACHE_PATH, criteria=criteria['extra-validation'])
         print('Found {} images...'.format(len(val_inclusion)))
-
-
     else:
         raise Exception('Unrecognized DEFINE_SET: {}'.format(inf_set))
+
 
     # Construct transforms
     data_transforms = augmentations(opt=opt)
@@ -449,6 +451,7 @@ def run(opt, f_txt, exp_name, inf_set):
     model = Model(opt=opt)
     best_index = find_best_model(path=os.path.join(exp_name), finetune=False)
     checkpoint = torch.load(os.path.join(exp_name, best_index))['state_dict']
+
     # Adapt state_dict keys (remove model. from the key and save again)
     if not os.path.exists(os.path.join(exp_name, 'final_pytorch_model.pt')):
 
@@ -479,6 +482,14 @@ def run(opt, f_txt, exp_name, inf_set):
     # Push model to GPU and set in evaluation mode
     model.cuda()
     model.eval()
+
+    if opt.precision and inf_set == 'Val':
+        model.qconfig = torch.quantization.get_default_qconfig('x86')
+        model_fused = torch.ao.quantization.fuse_modules(model, [['nn.Conv2d', 'nn.GroupNorm', 'nn.ReLU']])
+        model_prepared = torch.ao.quantization.prepare(model_fused)
+
+
+    
     with torch.no_grad():
         # Loop over the data
         for img in val_inclusion:
@@ -551,6 +562,8 @@ def run(opt, f_txt, exp_name, inf_set):
 
             # Get prediction of model and perform Sigmoid activation
             out1, out2 = model(image_t)
+            if opt.precision and inf_set == 'Val':
+                model_prepared(image_t)
             cls_pred = out1 if out1.dim() == 2 else out2
             seg_pred = out2 if out2.dim() == 4 else out1
             cls_pred = torch.sigmoid(cls_pred).cpu()
@@ -832,6 +845,12 @@ def run(opt, f_txt, exp_name, inf_set):
     df.to_excel(os.path.join(OUTPUT_PATH, 'cls_scores.xlsx'))
 
 
+    # Qauntize model
+    if opt.precision and inf_set == 'Val':
+        model_int8 = torch.ao.quantization.convert(model_prepared)
+        torch.save(model_int8.state_dict(), os.path.join(exp_name, 'final_pytorch_model_int8.pt'))
+
+
 """""" """""" """"""
 """" EXECUTION """
 """""" """""" """"""
@@ -850,6 +869,7 @@ if __name__ == '__main__':
     parser.add_argument('--threshold', type=float, default=0.5)
     parser.add_argument('--min_sensitivity', type=float, default=0.9)
     parser.add_argument('--textfile', type=str, default='Results.txt')
+    parser.add_argument("--precision", type=str, default=None, choices=["fp32", "int8"])
     inference_opt = parser.parse_args()
 
     SAVE_DIR = inference_opt.output_dir

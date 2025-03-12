@@ -2,7 +2,7 @@
 import torch.nn as nn
 
 # Import helper functions from other files
-from models.MetaFormer import MetaFormerFPN, MetaFormerUperNet, MetaFormerDeepLabV3p, MetaFormerUNetpp
+from models.MetaFormer import MetaFormerFPN, MetaFormerUperNet, MetaFormerDeepLabV3p
 from models.MetaFormer import convformer_s18, caformer_s18
 
 
@@ -24,8 +24,6 @@ class Model(nn.Module):
                 self.backbone = MetaFormerUperNet(opt=opt)
             elif 'DeepLabV3p' in opt.backbone:
                 self.backbone = MetaFormerDeepLabV3p(opt=opt)
-            elif 'UNetpp' in opt.backbone:
-                self.backbone = MetaFormerUNetpp(opt=opt)
         else:
             raise Exception('Unexpected Backbone {}'.format(opt.backbone))
 
