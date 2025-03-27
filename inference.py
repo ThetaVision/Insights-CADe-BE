@@ -25,6 +25,7 @@ from utils.metrics import BinaryDiceMetricEval
 
 import matplotlib
 import matplotlib.pyplot as plt
+from torch.quantization import default_observer, default_weight_observer, QConfig
 
 
 matplotlib.use('TkAgg')
@@ -235,24 +236,33 @@ def run_val_thresholds(opt, exp_name, inf_set):
 
     # Construct Model and load weights
     model = Model(opt=opt)
-    best_index = find_best_model(path=os.path.join(SAVE_DIR, exp_name), finetune=False)
-    checkpoint = torch.load(os.path.join(SAVE_DIR, exp_name, best_index))['state_dict']
 
-    # Adapt state_dict keys (remove model. from the key and save again)
-    if not os.path.exists(os.path.join(SAVE_DIR, exp_name, 'final_pytorch_model.pt')):
-        checkpoint_keys = list(checkpoint.keys())
-        for key in checkpoint_keys:
-            checkpoint[key.replace('model.', '')] = checkpoint[key]
-            del checkpoint[key]
-        model.load_state_dict(checkpoint, strict=True)
-        torch.save(
-            model.state_dict(),
-            os.path.join(SAVE_DIR, exp_name, 'final_pytorch_model.pt'),
-        )
+    if opt.quantized_model:
+        model.qconfig = torch.quantization.get_default_qat_qconfig('fbgemm')
+        model_fp32_prepared = torch.quantization.prepare_qat(model)
+        model= torch.quantization.convert(model_fp32_prepared)
+        model.load_state_dict(torch.load(opt.quantized_model))
+        # checkpoint = torch.load(opt.quantized_model)['state_dict']
 
-    # Load weights
-    weights = torch.load(os.path.join(SAVE_DIR, exp_name, 'final_pytorch_model.pt'))
-    model.load_state_dict(weights, strict=True)
+    else:
+        best_index = find_best_model(path=os.path.join(SAVE_DIR, exp_name), finetune=False)
+        checkpoint = torch.load(os.path.join(SAVE_DIR, exp_name, best_index))['state_dict']
+
+        # Adapt state_dict keys (remove model. from the key and save again)
+        if not os.path.exists(os.path.join(SAVE_DIR, exp_name, 'final_pytorch_model.pt')):
+            checkpoint_keys = list(checkpoint.keys())
+            for key in checkpoint_keys:
+                checkpoint[key.replace('model.', '')] = checkpoint[key]
+                del checkpoint[key]
+            model.load_state_dict(checkpoint, strict=True)
+            torch.save(
+                model.state_dict(),
+                os.path.join(SAVE_DIR, exp_name, 'final_pytorch_model.pt'),
+            )
+
+        # Load weights
+        weights = torch.load(os.path.join(SAVE_DIR, exp_name, 'final_pytorch_model.pt'))
+        model.load_state_dict(weights, strict=True)
 
     # Initialize metrics
     y_true, y_pred_cls, y_pred_seg, y_pred_avg = list(), list(), list(), list()
@@ -449,28 +459,36 @@ def run(opt, f_txt, exp_name, inf_set):
 
     # Construct Model and load weights
     model = Model(opt=opt)
-    best_index = find_best_model(path=os.path.join(exp_name), finetune=False)
-    checkpoint = torch.load(os.path.join(exp_name, best_index))['state_dict']
+    if opt.quantized_model:
+        model.qconfig = torch.quantization.get_default_qat_qconfig('fbgemm')
+        model_fp32_prepared = torch.quantization.prepare_qat(model)
+        model= torch.quantization.convert(model_fp32_prepared)
+        model.load_state_dict(torch.load(opt.quantized_model))
+        # checkpoint = torch.load(opt.quantized_model)['state_dict']
 
-    # Adapt state_dict keys (remove model. from the key and save again)
-    if not os.path.exists(os.path.join(exp_name, 'final_pytorch_model.pt')):
+    else:
+        best_index = find_best_model(path=os.path.join(SAVE_DIR, exp_name), finetune=False)
+        checkpoint = torch.load(os.path.join(SAVE_DIR, exp_name, best_index))['state_dict']
 
-        new_state_dict = {}
-        for key in checkpoint:
-            new_state_dict[key.replace('model.', '')] = checkpoint[key]
+        # Adapt state_dict keys (remove model. from the key and save again)
+        if not os.path.exists(os.path.join(SAVE_DIR, exp_name, 'final_pytorch_model.pt')):
+            checkpoint_keys = list(checkpoint.keys())
+            for key in checkpoint_keys:
+                checkpoint[key.replace('model.', '')] = checkpoint[key]
+                del checkpoint[key]
 
-        # delete cls_criterion.pos_weight from state_dict
-        del new_state_dict['cls_criterion.pos_weight']
+            # delete cls_criterion.pos_weight from state_dict
+            del checkpoint['cls_criterion.pos_weight']
+            model.load_state_dict(checkpoint, strict=True)
+            torch.save(
+                model.state_dict(),
+                os.path.join(SAVE_DIR, exp_name, 'final_pytorch_model.pt'),
+            )
 
-        model.load_state_dict(new_state_dict, strict=True)
-        torch.save(
-            model.state_dict(),
-            os.path.join(exp_name, 'final_pytorch_model.pt'),
-        )
-
-    # Load weights
-    weights = torch.load(os.path.join(exp_name, 'final_pytorch_model.pt'), weights_only=True)
-    model.load_state_dict(weights, strict=True)
+        # Load weights
+        weights = torch.load(os.path.join(SAVE_DIR, exp_name, 'final_pytorch_model.pt'))
+        model.load_state_dict(weights, strict=True)
+    
 
     # Initialize metrics
     dice_score = BinaryDiceMetricEval(threshold=opt.threshold)
@@ -484,9 +502,18 @@ def run(opt, f_txt, exp_name, inf_set):
     model.eval()
 
     if opt.precision and inf_set == 'Val':
-        model.qconfig = torch.quantization.get_default_qconfig('x86')
-        model_fused = torch.ao.quantization.fuse_modules(model, [['nn.Conv2d', 'nn.GroupNorm', 'nn.ReLU']])
-        model_prepared = torch.ao.quantization.prepare(model_fused)
+
+        # print available quantization backends
+        print("Available backends: ", torch.backends.quantized.supported_engines)
+        # torch.backends.quantized.engine = 'x86'
+        torch.backends.quantized.engine = 'fbgemm'
+        # Adjust the qconfig to use per_tensor_affine for weights.
+        qconfig = QConfig(
+            activation=default_observer,
+            weight=default_weight_observer.with_args(qscheme=torch.per_tensor_affine)
+        )
+        model.qconfig = qconfig
+        model_prepared = torch.ao.quantization.prepare(model)
 
 
     
@@ -847,6 +874,9 @@ def run(opt, f_txt, exp_name, inf_set):
 
     # Qauntize model
     if opt.precision and inf_set == 'Val':
+        # move model to cpu
+        model_prepared.cpu()
+        # convert to quantized model
         model_int8 = torch.ao.quantization.convert(model_prepared)
         torch.save(model_int8.state_dict(), os.path.join(exp_name, 'final_pytorch_model_int8.pt'))
 
@@ -870,6 +900,7 @@ if __name__ == '__main__':
     parser.add_argument('--min_sensitivity', type=float, default=0.9)
     parser.add_argument('--textfile', type=str, default='Results.txt')
     parser.add_argument("--precision", type=str, default=None, choices=["fp32", "int8"])
+    parser.add_argument("--quantized_model", type=str, default="final_pytorch_model_int8.pt")
     inference_opt = parser.parse_args()
 
     SAVE_DIR = inference_opt.output_dir
@@ -893,6 +924,8 @@ if __name__ == '__main__':
         'evaluate_sets': inference_opt.evaluate_sets,
         'textfile': inference_opt.textfile,
         'weights': data['weights'],
+        'precision': inference_opt.precision,
+        'quantized_model': inference_opt.quantized_model,
     }
     opt = argparse.Namespace(**opt)
 
