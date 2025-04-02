@@ -437,7 +437,7 @@ def run_val_thresholds(opt, exp_name, inf_set):
 
 
 
-def run(opt, f_txt, exp_name, inf_set):
+def run(opt, f_txt, inf_set):
     # Test Device
     device = check_cuda()
 
@@ -468,57 +468,10 @@ def run(opt, f_txt, exp_name, inf_set):
 
     # Construct Model and load weights
     model = Model(opt=opt)
-    best_index = find_best_model(path=os.path.join(exp_name), finetune=False)
-    checkpoint = torch.load(os.path.join(exp_name, best_index))['state_dict']
-
-    # Adapt state_dict keys (remove model. from the key and save again)
-    if not os.path.exists(os.path.join(exp_name, 'final_pytorch_model.pt')):
-
-        new_state_dict = {}
-        for key in checkpoint:
-            new_state_dict[key.replace('model.', '')] = checkpoint[key]
-
-        # delete cls_criterion.pos_weight from state_dict
-        del new_state_dict['cls_criterion.pos_weight']
-
-        model.load_state_dict(new_state_dict, strict=True)
-        torch.save(
-            model.state_dict(),
-            os.path.join(exp_name, 'final_pytorch_model.pt'),
-        )
 
     # Determine file paths
-    base_model_path = os.path.join(exp_name, 'final_pytorch_model.pt')
-    quantized_model_path = os.path.join(SAVE_DIR, exp_name, f'final_pytorch_model_{opt.precision}.pt')
-
-    # Load weights and apply quantization if needed
-    if opt.precision and inf_set == 'Val':
-        if os.path.exists(quantized_model_path):
-
-            torchao.quantization.swap_linear_with_smooth_fq_linear(model)
-            print(f'Loading quantized model from {quantized_model_path}')
-            state_dict = torch.load(quantized_model_path, weights_only=False)
-            model.load_state_dict(state_dict)
-        else:
-            # Fallback: load base model weights first, then apply quantization
-            weights = torch.load(base_model_path, weights_only=True)
-            model.load_state_dict(weights, strict=True)
-            # if opt.precision == 'int4':
-            #     quantize_(model, Int8DynamicActivationInt4WeightConfig())
-            #     # model = torch.compile(model, mode="max-autotune", fullgraph=True)
-            # elif opt.precision == 'int8':
-            #     quantize_(model, Int8DynamicActivationInt8WeightConfig())
-            #     # model = torch.compile(model, mode="max-autotune", fullgraph=True)
-            # elif opt.precision == 'fp8':
-            #     quantize_(model, float8_dynamic_activation_float8_weight())
-            #     # model = torch.compile(model, mode="max-autotune", fullgraph=True)
-
-            # Select quantization config
-            config = mtq.INT8_SMOOTHQUANT_CFG
-    else:
-        # No precision requirement; load the base model weights directly
-        weights = torch.load(base_model_path, weights_only=True)
-        model.load_state_dict(weights, strict=True)
+    weights = torch.load(opt.model_path, weights_only=True)
+    model.load_state_dict(weights, strict=True)
 
     # Initialize metrics
     dice_score = BinaryDiceMetricEval(threshold=opt.threshold)
@@ -889,17 +842,6 @@ def run(opt, f_txt, exp_name, inf_set):
     # Save dataframe as csv file
     df.to_excel(os.path.join(OUTPUT_PATH, 'cls_scores.xlsx'))
 
-    
-    # Save calibration data as numpy array
-    calib_array = torch.cat(calib_array, dim=0)
-    
-    # Save calibration data as numpy array
-    np.save(os.path.join(OUTPUT_PATH, 'calib_data.npy'), calib_array.cpu().numpy())
-    # SAVE Qauntize model weights only
-    if opt.precision and inf_set == 'Val':
-        if not os.path.exists(quantized_model_path):
-            torch.save(model.state_dict(), quantized_model_path)
-            print(f'Quantized model saved to {quantized_model_path}')
 
 """""" """""" """"""
 """" EXECUTION """
@@ -913,13 +855,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--output_dir', type=str, default='output')
     parser.add_argument('--cache_path', type=str, default='cache')
-    parser.add_argument('--experiment_name', type=str, default='GastroNet', help='path to experiment')
+    parser.add_argument('--model_path', type=str, default='GastroNet', help='Path to the model')
     parser.add_argument('--evaluate_sets', type=list_of_settings)
     parser.add_argument('--ground_truth', type=str, default='Plausible')
     parser.add_argument('--threshold', type=float, default=0.5)
     parser.add_argument('--min_sensitivity', type=float, default=0.9)
     parser.add_argument('--textfile', type=str, default='Results.txt')
-    parser.add_argument("--quantized_precision_model", type=str, default=None, choices=["fp32", "bf16", "int8", "int4", "int4_weight", "int8_weight", "fp8"])
     inference_opt = parser.parse_args()
 
     SAVE_DIR = inference_opt.output_dir
@@ -931,7 +872,7 @@ if __name__ == '__main__':
     data = json.load(f)
 
     opt = {
-        'experimentname': exp_name,
+        'model_path': inference_opt.model_path,
         'backbone': data['backbone'],
         'seg_branch': data['seg_branch'],
         'imagesize': data['imagesize'],
