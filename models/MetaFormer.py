@@ -130,6 +130,9 @@ class MetaFormerFPN(nn.Module):
             for name, param in self.metaformer.named_parameters():
                 if 'head' not in name:
                     param.requires_grad = False
+                else:
+                    param.requires_grad = True
+                    print("Not freezing: ", name)
             
             
 
