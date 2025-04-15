@@ -122,6 +122,16 @@ class MetaFormerFPN(nn.Module):
         # Define Exception
         else:
             raise Exception("Unrecognized MetaFormer version...")
+        
+        # freeze the parameters of the backbone (exclude head) if opt.freeze_backbone is True
+        if opt.freeze_backbone:
+            print("Freezing backbone parameters")
+            print(self.metaformer)
+            for name, param in self.metaformer.named_parameters():
+                if 'head' not in name:
+                    param.requires_grad = False
+            
+            
 
         # Define FPN Decoder
         self.FPN = FPN(

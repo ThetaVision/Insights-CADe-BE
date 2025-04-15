@@ -603,6 +603,9 @@ if __name__ == "__main__":
     parser.add_argument("--num_epochs", type=int, default=150)
     parser.add_argument("--train_lr", type=float, default=1e-6)
 
+    # FINETUNING PARAMETERS
+    parser.add_argument("--freeze_backbone", type=bool, default=False)
+
     
 
     # SPECIFY CACHE PATH
