@@ -128,7 +128,7 @@ class MetaFormerFPN(nn.Module):
             print("Freezing backbone parameters")
             print(self.metaformer)
             for name, param in self.metaformer.named_parameters():
-                if 'head' not in name:
+                if 'head' not in name and "stages.3" not in name:
                     param.requires_grad = False
                 else:
                     param.requires_grad = True
